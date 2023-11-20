@@ -5,14 +5,17 @@ PREFIX ?=/usr/local
 
 all: lib/libhtswrapper.so
 
-lib/libhtswrapper.so: build/bam.o build/bc_hash.o
-	$(COMP) -shared -o lib/libhtswrapper.so build/bam.o build/bc_hash.o -lhts
+lib/libhtswrapper.so: build/bam.o build/bc_hash.o build/serialize.o
+	$(COMP) -shared -o lib/libhtswrapper.so build/bam.o build/bc_hash.o build/serialize.o -lhts
 
 build/bam.o: src/bam.cpp src/bam.h
 	$(COMP) $(FLAGS) -c -o build/bam.o src/bam.cpp
 
 build/bc_hash.o: src/bc_hash.cpp src/bc_hash.h
 	$(COMP) $(FLAGS) -c -o build/bc_hash.o src/bc_hash.cpp
+
+build/serialize.o: src/serialize.cpp src/serialize.h
+	$(COMP) $(FLAGS) -c -o build/serialize.o src/serialize.cpp
 
 clean:
 	rm build/*.o
@@ -22,6 +25,7 @@ install: | $(PREFIX)/lib $(PREFIX)/include/htswrapper
 	cp lib/libhtswrapper.so $(PREFIX)/lib
 	cp src/bam.h $(PREFIX)/include/htswrapper
 	cp src/bc_hash.h $(PREFIX)/include/htswrapper
+	cp src/serialize.h $(PREFIX)/include/htswrapper
 
 $(PREFIX)/lib:
 	mkdir -p $(PREFIX)/lib
