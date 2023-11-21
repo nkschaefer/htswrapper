@@ -32,6 +32,7 @@ uint8_t BASE_N = 15;
  */
 bam_reader::bam_reader(){
     this->set_defaults();
+    this->initialized = false;
 }
 
 /**
@@ -66,15 +67,17 @@ void bam_reader::set_file(string& bamfile){
     this->reader = bam_init1();
     this->n_header_seqs = this->header->n_targets; 
     this->header_seqs = this->header->target_name;
-    
+    this->initialized = true;
 }
 
 /**
  * Destructor
  */
 bam_reader::~bam_reader(){
-    bam_destroy1(this->reader);
-    sam_close(this->fp);
+    if (this->initialized){
+        bam_destroy1(this->reader);
+        sam_close(this->fp);
+    }
 }
 
 /**

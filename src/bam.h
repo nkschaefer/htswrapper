@@ -23,7 +23,8 @@ class bam_reader{
         hts_idx_t* idx;
         bool idx_init;
         bool region_set;
-        
+        bool initialized;
+
         void fill_data();
 
     public:
