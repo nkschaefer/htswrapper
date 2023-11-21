@@ -2,6 +2,7 @@
 #define BCHASH_H
 #include <utility>
 #include <cstdlib>
+#include <set>
 #include <bitset>
 #include <string>
 
@@ -31,5 +32,6 @@ bool str2bc(const char* string, bc& this_bc, int len);
 bool str2bc_rc(const char* string, bc& this_bc, int len);
 std::string bc2str(bc& this_bc, int len);
 std::string bc2str_rc(bc& this_bc, int len);
+void parse_barcode_file(std::string& filename, std::set<unsigned long>& cell_barcodes);
 
 #endif
