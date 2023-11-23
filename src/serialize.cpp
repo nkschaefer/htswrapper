@@ -15,6 +15,7 @@
 #include <utility>
 #include <bitset>
 #include <mutex>
+#include <climits>
 #include "serialize.h"
 
 using std::cout;
