@@ -204,7 +204,7 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
             int line_start = 0;
             for (int i = 0; i < nread; ++i){
                 if (buf[i] == '\n'){
-                    strncpy(&strbuf[0], &buf[line_start], i-line_start);
+                    strncpy(&strbuf[0], &buf[line_start], i-line_start-1);
                     string bc_str = strbuf;
                     fprintf(stderr, "bc_str %s\n", bc_str.c_str());
                     cell_barcodes.insert(convert_from_barcode_list(bc_str));
