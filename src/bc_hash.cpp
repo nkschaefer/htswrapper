@@ -154,8 +154,9 @@ string bc2str_rc(bc& this_bc, int len){
  *
  */
 unsigned long convert_from_barcode_list(string& barcode){
+    // Strip anything that's not ACGT off the end of the sequence.
     int ntrim = 0;
-    for (int i = barcode.length()-1; i >= 0; ++i){
+    for (int i = barcode.length()-1; i >= 0; --i){
         if (barcode[i] != 'A' && barcode[i] != 'C' &&
             barcode[i] != 'G' && barcode[i] != 'T'){
             // trim it.
@@ -204,9 +205,9 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
             int line_start = 0;
             for (int i = 0; i < nread; ++i){
                 if (buf[i] == '\n'){
-                    strncpy(&strbuf[0], &buf[line_start], i-line_start-1);
+                    strncpy(&strbuf[0], &buf[line_start], i-line_start);
+                    strbuf[i-line_start] = '\0';
                     string bc_str = strbuf;
-                    fprintf(stderr, "bc_str %s\n", bc_str.c_str());
                     cell_barcodes.insert(convert_from_barcode_list(bc_str));
                     line_start = i + 1;
                 }
@@ -214,8 +215,8 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
             if (eof && line_start < nread){
                 // Get last bit
                 strncpy(&strbuf[0], &buf[line_start], nread-line_start);
+                buf[nread-line_start] = '\0';
                 string bc_str = strbuf;
-                fprintf(stderr, "last bc_str %s\n", bc_str.c_str());
                 cell_barcodes.insert(convert_from_barcode_list(bc_str));
             }
             else if (line_start < bufsize){
