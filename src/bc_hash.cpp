@@ -186,6 +186,7 @@ unsigned long convert_from_barcode_list(string& barcode){
 void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
     
     if (filename.length() > 3 && filename.substr(filename.length()-3, 3) == ".gz"){
+        fprintf(stderr, "gzipped\n");
         // Process gzipped file
         int bufsize = 1024;
         char buf[bufsize];
@@ -205,6 +206,7 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
                 if (buf[i] == '\n'){
                     strncpy(&strbuf[0], &buf[line_start], i-line_start);
                     string bc_str = strbuf;
+                    fprintf(stderr, "bc_str %s\n", bc_str.c_str());
                     cell_barcodes.insert(convert_from_barcode_list(bc_str));
                     line_start = i + 1;
                 }
@@ -213,6 +215,7 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
                 // Get last bit
                 strncpy(&strbuf[0], &buf[line_start], nread-line_start);
                 string bc_str = strbuf;
+                fprintf(stderr, "last bc_str %s\n", bc_str.c_str());
                 cell_barcodes.insert(convert_from_barcode_list(bc_str));
             }
             else if (line_start < bufsize){
@@ -234,6 +237,6 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
             cell_barcodes.insert(convert_from_barcode_list(bc_str));
         }    
     }
-    fprintf(stderr, "Read %ld valid barcodes from file\n", cell_barcodes.size());
+    fprintf(stderr, "Read %ld barcodes from file\n", cell_barcodes.size());
 }
 

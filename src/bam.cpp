@@ -159,7 +159,6 @@ void bam_reader::add_read_group_read(const string& id){
  */
 bool bam_reader::set_query_site(int tid, long int pos){
     if (!this->idx_init){
-        fprintf(stderr, "loading index...\n");
         this->idx = hts_idx_load(this->filename.c_str(), HTS_FMT_BAI);
         this->idx_init = true;
     }   
