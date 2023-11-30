@@ -153,7 +153,7 @@ string bc2str_rc(bc& this_bc, int len){
  * Assumes barcodes are length 16.
  *
  */
-unsigned long convert_from_barcode_list(string& barcode){
+unsigned long hash_bc(string& barcode){
     // Strip anything that's not ACGT off the end of the sequence.
     int ntrim = 0;
     for (int i = barcode.length()-1; i >= 0; --i){
@@ -171,6 +171,30 @@ unsigned long convert_from_barcode_list(string& barcode){
     }
     bc as_bitset;
     str2bc(barcode.c_str(), as_bitset, 16);
+    return as_bitset.to_ulong();
+}
+
+/**
+ * Same as above, but if working with a character buffer,
+ * avoid copying into a std::string for speed
+ */
+unsigned long hash_bc(char* barcode){
+    int ntrim = 0;
+    for (int i = strlen(barcode)-1; i >= 0; --i){
+        if (barcode[i] != 'A' && barcode[i] != 'C' &&
+            barcode[i] != 'G' && barcode[i] != 'T'){
+            // trim it.
+            ++ntrim;
+        }
+        else{
+            break;
+        }
+    }
+    if (ntrim > 0){
+        barcode[strlen(barcode)-ntrim] = '\0';
+    }
+    bc as_bitset;
+    str2bc(barcode, as_bitset, 16);
     return as_bitset.to_ulong();
 }
 
@@ -208,7 +232,7 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
                     strncpy(&strbuf[0], &buf[line_start], i-line_start);
                     strbuf[i-line_start] = '\0';
                     string bc_str = strbuf;
-                    cell_barcodes.insert(convert_from_barcode_list(bc_str));
+                    cell_barcodes.insert(hash_bc(bc_str));
                     line_start = i + 1;
                 }
             }
@@ -217,7 +241,7 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
                 strncpy(&strbuf[0], &buf[line_start], nread-line_start);
                 buf[nread-line_start] = '\0';
                 string bc_str = strbuf;
-                cell_barcodes.insert(convert_from_barcode_list(bc_str));
+                cell_barcodes.insert(hash_bc(bc_str));
             }
             else if (line_start < bufsize){
                 // Need to copy what remains in buffer to beginning.
@@ -235,7 +259,7 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
         ifstream infile(filename.c_str());
         string bc_str;
         while (infile >> bc_str){
-            cell_barcodes.insert(convert_from_barcode_list(bc_str));
+            cell_barcodes.insert(hash_bc(bc_str));
         }    
     }
     fprintf(stderr, "Read %ld barcodes from file\n", cell_barcodes.size());
