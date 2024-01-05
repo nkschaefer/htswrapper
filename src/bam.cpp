@@ -179,7 +179,6 @@ bool bam_reader::set_query_region(const char* chrom, long int start, long int en
     hts_pos_t region_start;
     hts_pos_t region_end;
     if (!this->idx_init){
-        fprintf(stderr, "loading index...\n");
         this->idx = hts_idx_load(this->filename.c_str(), HTS_FMT_BAI);
         this->idx_init = true;
     }
