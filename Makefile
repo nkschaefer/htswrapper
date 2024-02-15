@@ -31,7 +31,7 @@ install: | $(PREFIX)/lib $(PREFIX)/include/htswrapper
 	cp lib/*.so $(PREFIX)/lib
 	cp lib/*.a $(PREFIX)/lib
 	cp src/bam.h $(PREFIX)/include/htswrapper
-	cp src/bc_hash.h $(PREFIX)/include/htswrapper
+	cp src/bc.h $(PREFIX)/include/htswrapper
 	cp src/serialize.h $(PREFIX)/include/htswrapper
 
 $(PREFIX)/lib:
