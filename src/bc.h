@@ -28,10 +28,10 @@ struct ulong_equal_func {
 // Designed to hold 16-base cell barcodes
 typedef std::bitset<32> bc;
 
-bool str2bc(const char* string, bc& this_bc, int len);
-bool str2bc_rc(const char* string, bc& this_bc, int len);
-std::string bc2str(bc& this_bc, int len);
-std::string bc2str_rc(bc& this_bc, int len);
+bool str2bc(const char* string, bc& this_bc);
+bool str2bc_rc(const char* string, bc& this_bc);
+std::string bc2str(bc& this_bc);
+std::string bc2str_rc(bc& this_bc);
 unsigned long hash_bc(std::string& barcode);
 unsigned long hash_bc(char* barcode);
 void parse_barcode_file(std::string& filename, std::set<unsigned long>& cell_barcodes);

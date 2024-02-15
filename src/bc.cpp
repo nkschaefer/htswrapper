@@ -8,7 +8,7 @@
 #include <fstream>
 #include <sys/time.h>
 #include <zlib.h>
-#include "bc_hash.h"
+#include "bc.h"
 
 using namespace std;
 
@@ -16,10 +16,10 @@ using namespace std;
  * Convert a DNA sequence from string to bitset
  * representation
  */
-bool str2bc(const char* str, bc& this_bc, int len){
+bool str2bc(const char* str, bc& this_bc){
     this_bc.reset();
     int bcbit = 0;
-    for (int i = 0; i < len; ++i){
+    for (int i = 0; i < BC_LEN; ++i){
         switch(str[i]){
             case 'A':
             case 'a':
@@ -53,10 +53,10 @@ bool str2bc(const char* str, bc& this_bc, int len){
  * Convert a DNA sequence from string to bitset format,
  * in reverse complement orientation
  */
-bool str2bc_rc(const char* str, bc& this_bc, int len){
+bool str2bc_rc(const char* str, bc& this_bc){
     this_bc.reset();
     int bcbit = 0;
-    for (int i = len-1; i >= 0; --i){
+    for (int i = BC_LEN-1; i >= 0; --i){
         switch(str[i]){
             case 'T':
             case 't':
@@ -90,10 +90,10 @@ bool str2bc_rc(const char* str, bc& this_bc, int len){
  * Convert a bitset representation of a DNA sequence
  * to a string representation
  */
-string bc2str(bc& this_bc, int len){
-    char strbuf[len+1];
-    strbuf[len] = '\0';
-    for (int i = 0; i < len; ++i){
+string bc2str(bc& this_bc){
+    char strbuf[BC_LEN+1];
+    strbuf[BC_LEN] = '\0';
+    for (int i = 0; i < BC_LEN; ++i){
         if (this_bc.test(i*2)){
             if (this_bc.test(i*2+1)){
                 strbuf[i] = 'T';
@@ -119,11 +119,11 @@ string bc2str(bc& this_bc, int len){
  * to a string representation, in reverse complement
  * orientation.
  */
-string bc2str_rc(bc& this_bc, int len){
-    char strbuf[len+1];
-    strbuf[len] = '\0';
+string bc2str_rc(bc& this_bc){
+    char strbuf[BC_LEN+1];
+    strbuf[BC_LEN] = '\0';
     int buf_idx = 0;
-    for (int i = len-1; i >= 0; --i){
+    for (int i = BC_LEN-1; i >= 0; --i){
         if (this_bc.test(i*2)){
             if (this_bc.test(i*2+1)){
                 strbuf[buf_idx] = 'A';
@@ -150,8 +150,6 @@ string bc2str_rc(bc& this_bc, int len){
  * end of a cell barcode string and returns an unsigned long
  * representation.
  *
- * Assumes barcodes are length 16.
- *
  */
 unsigned long hash_bc(string& barcode){
     // Strip anything that's not ACGT off the end of the sequence.
@@ -170,7 +168,7 @@ unsigned long hash_bc(string& barcode){
         barcode = barcode.substr(0, barcode.length()-ntrim);
     }
     bc as_bitset;
-    str2bc(barcode.c_str(), as_bitset, 16);
+    str2bc(barcode.c_str(), as_bitset);
     return as_bitset.to_ulong();
 }
 
@@ -194,7 +192,7 @@ unsigned long hash_bc(char* barcode){
         barcode[strlen(barcode)-ntrim] = '\0';
     }
     bc as_bitset;
-    str2bc(barcode, as_bitset, 16);
+    str2bc(barcode, as_bitset);
     return as_bitset.to_ulong();
 }
 
@@ -211,7 +209,6 @@ unsigned long hash_bc(char* barcode){
 void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
     
     if (filename.length() > 3 && filename.substr(filename.length()-3, 3) == ".gz"){
-        fprintf(stderr, "gzipped\n");
         // Process gzipped file
         int bufsize = 1024;
         char buf[bufsize];
