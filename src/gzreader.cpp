@@ -95,7 +95,7 @@ bool gzreader::next(){
     while(true){
         
         // Parse lines.
-        for (int i = line_start; i < nread; ++i){
+        for (int i = line_start; i < nread + idx_start; ++i){
             if (buf[i] == '\n'){
                 strncpy(&line[0], &buf[line_start], i-line_start);
                 line[i-line_start] = '\0';
@@ -104,11 +104,11 @@ bool gzreader::next(){
                 return true;
             }
         }
-        if (eof && line_start < nread){
+        if (eof && line_start < nread + idx_start){
             // Get last bit
-            strncpy(&line[0], &buf[line_start], nread-line_start);
-            line[nread-line_start] = '\0';
-            line_start = nread;         
+            strncpy(&line[0], &buf[line_start], nread+idx_start-line_start);
+            line[nread+idx_start-line_start] = '\0';
+            line_start = nread;
             return true;
         }
 
