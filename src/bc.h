@@ -5,6 +5,7 @@
 #include <set>
 #include <bitset>
 #include <string>
+#include <unordered_map>
 
 // A hash function that could be used to speed up insertion/retrieval of hashed
 // barcodes to unordered maps
@@ -26,7 +27,8 @@ struct ulong_equal_func {
 };
 
 // Designed to hold 16-base cell barcodes
-typedef std::bitset<32> bc;
+typedef std::bitset<BC_LENX2> bc;
+typedef std::unordered_map<unsigned long, int> bcset;
 
 bool str2bc(const char* string, bc& this_bc);
 bool str2bc_rc(const char* string, bc& this_bc);

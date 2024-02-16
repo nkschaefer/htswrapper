@@ -4,6 +4,8 @@
 #include <bitset>
 #include <string>
 #include <set>
+#include <map>
+#include <vector>
 #include <iostream>
 #include <fstream>
 #include <sys/time.h>
@@ -19,7 +21,7 @@ using namespace std;
 bool str2bc(const char* str, bc& this_bc){
     this_bc.reset();
     int bcbit = 0;
-    for (int i = 0; i < BC_LEN; ++i){
+    for (int i = 0; i < BC_LENX2/2; ++i){
         switch(str[i]){
             case 'A':
             case 'a':
@@ -56,7 +58,7 @@ bool str2bc(const char* str, bc& this_bc){
 bool str2bc_rc(const char* str, bc& this_bc){
     this_bc.reset();
     int bcbit = 0;
-    for (int i = BC_LEN-1; i >= 0; --i){
+    for (int i = BC_LENX2/2-1; i >= 0; --i){
         switch(str[i]){
             case 'T':
             case 't':
@@ -91,9 +93,9 @@ bool str2bc_rc(const char* str, bc& this_bc){
  * to a string representation
  */
 string bc2str(bc& this_bc){
-    char strbuf[BC_LEN+1];
-    strbuf[BC_LEN] = '\0';
-    for (int i = 0; i < BC_LEN; ++i){
+    char strbuf[BC_LENX2/2+1];
+    strbuf[BC_LENX2/2] = '\0';
+    for (int i = 0; i < BC_LENX2/2; ++i){
         if (this_bc.test(i*2)){
             if (this_bc.test(i*2+1)){
                 strbuf[i] = 'T';
@@ -120,10 +122,10 @@ string bc2str(bc& this_bc){
  * orientation.
  */
 string bc2str_rc(bc& this_bc){
-    char strbuf[BC_LEN+1];
-    strbuf[BC_LEN] = '\0';
+    char strbuf[BC_LENX2/2+1];
+    strbuf[BC_LENX2/2] = '\0';
     int buf_idx = 0;
-    for (int i = BC_LEN-1; i >= 0; --i){
+    for (int i = BC_LENX2/2-1; i >= 0; --i){
         if (this_bc.test(i*2)){
             if (this_bc.test(i*2+1)){
                 strbuf[buf_idx] = 'A';
@@ -262,3 +264,222 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
     fprintf(stderr, "Read %ld barcodes from file\n", cell_barcodes.size());
 }
 
+/**
+ * Read data about whitelisted 10X ATAC / RNA barcodes. Required to map ATAC to RNA barcodes.
+ */
+void parse_whitelists(string& whitelist_atac_filename,
+    string& whitelist_rna_filename, 
+    bcset& atac_bc2idx,
+    vector<unsigned long>& whitelist_rna,
+    bcset& rna_bc2idx){
+
+    if (whitelist_atac_filename != ""){
+        // Create scope to free temporary data structures
+        ifstream wlfile_atac(whitelist_atac_filename);
+        int bc_idx = 0;
+        string line;
+        bc atac_bc;
+
+        while(wlfile_atac >> line){
+            if (!str2bc(line.c_str(), atac_bc)){
+                fprintf(stderr, "ERROR: invalid barcode %s in ATAC whitelist\n", line.c_str());
+                exit(1);
+            }
+            //atac_bc2idx.insert(make_pair(atac_bc.to_ulong(), bc_idx));
+            atac_bc2idx.emplace(atac_bc.to_ulong(), bc_idx);
+            bc_idx++;
+        }
+        // Now map these to RNA barcodes
+        ifstream wlfile_rna(whitelist_rna_filename);
+        bc_idx = 0;
+        while(wlfile_rna >> line){
+            if (!str2bc(line.c_str(), atac_bc)){
+                fprintf(stderr, "ERROR: invalid barcode %s in RNA-seq whitelist\n", line.c_str());
+                exit(1);
+            }
+            whitelist_rna.push_back(atac_bc.to_ulong());
+            rna_bc2idx.emplace(atac_bc.to_ulong(), bc_idx);
+            bc_idx++;
+        }
+    }
+    else if (whitelist_rna_filename != ""){
+        ifstream wlfile_rna(whitelist_rna_filename);
+        int bc_idx = 0;
+        string line;
+        bc rna_bc;
+        while (wlfile_rna >> line){
+            if (!str2bc(line.c_str(), rna_bc)){
+                fprintf(stderr, "ERROR: invalid barcode %s in RNA whitelist\n", line.c_str());
+                exit(1);
+            }
+            rna_bc2idx.emplace(rna_bc.to_ulong(), bc_idx);
+            whitelist_rna.push_back(rna_bc.to_ulong());
+            bc_idx++;
+        }
+    }    
+}
+
+/**
+ *  Given a candidate barcode, checks against the set of all legitimate
+ *  barcodes. If found, returns true and sets result_bc_str to a string
+ *  representation of the correct barcode.
+ */
+int match_bc(const char* cur_bc,   
+    bool rc, 
+    bcset& bc2idx,
+    multimap<unsigned long, unsigned long>& kmer2bc){
+    static bc bc_binary;
+    static char bc_str[BC_LENX2/2 + 1]; // For replacing N characters
+
+    bool success = false;
+    if (rc){
+        if (str2bc_rc(cur_bc, bc_binary)){ 
+            unsigned long ul = bc_binary.to_ulong();
+            if (bc2idx.count(ul) > 0){
+                return bc2idx[ul];
+            }
+            else{
+                return -1;
+            }
+        }
+        else{
+            // Contains N.
+            // Only allow up to one.
+            int npos = -1;
+            for (int i = 0; i < BC_LENX2/2; ++i){
+                if (cur_bc[i] == 'N'){
+                    if (npos != -1){
+                        // Multiple Ns; bail.
+                        return -1;
+                    }
+                    else{
+                        npos = i;
+                    }
+                }
+            }
+            
+            // Try to mutate to every possible letter.
+            bc bc_A;
+            bc bc_C;
+            bc bc_G;
+            bc bc_T;
+
+            bool pass_A = false;
+            bool pass_C = false;
+            bool pass_G = false;
+            bool pass_T = false;
+            
+            strncpy(&bc_str[0], cur_bc, BC_LENX2/2);
+            bc_str[BC_LENX2/2] = '\0';
+
+            bc_str[npos] = 'A';
+            if (str2bc_rc(bc_str, bc_A) && bc2idx.count(bc_A.to_ulong()) > 0){
+                pass_A = true;
+            } 
+            bc_str[npos] = 'C';
+            if (str2bc_rc(bc_str, bc_C) && bc2idx.count(bc_C.to_ulong()) > 0){
+                pass_C = true;
+            }
+            bc_str[npos] = 'G';
+            if (str2bc_rc(bc_str, bc_G) && bc2idx.count(bc_G.to_ulong()) > 0){
+                pass_G = true;
+            }
+            bc_str[npos] = 'T';
+            if (str2bc_rc(bc_str, bc_T) && bc2idx.count(bc_T.to_ulong()) > 0){
+                pass_T = true;
+            }
+            if (pass_A && !pass_C && !pass_G && !pass_T){
+                return bc2idx[bc_A.to_ulong()];
+            }
+            else if (pass_C && !pass_A && !pass_G && !pass_T){
+                return bc2idx[bc_C.to_ulong()];
+            }
+            else if (pass_G && !pass_A && !pass_C && !pass_T){
+                return bc2idx[bc_G.to_ulong()];
+            }
+            else if (pass_T && !pass_A && !pass_C && !pass_G){
+                return bc2idx[bc_T.to_ulong()];
+            }
+            else{
+                return -1;
+            }
+        }
+    }
+    else{
+        if (str2bc(cur_bc, bc_binary)){
+            if (bc2idx.count(bc_binary.to_ulong()) > 0){
+                return bc2idx[bc_binary.to_ulong()];
+            }
+            else{
+                return -1;
+            }
+        }
+        else{
+            // Contains N.
+            // Only allow up to one.
+            int npos = -1;
+            for (int i = 0; i < BC_LENX2/2; ++i){
+                if (cur_bc[i] == 'N'){
+                    if (npos != -1){
+                        // Multiple Ns; bail.
+                        return -1;
+                    }
+                    else{
+                        npos = i;
+                    }
+                }
+            }
+            
+            strncpy(&bc_str[0], cur_bc, BC_LENX2/2);
+            bc_str[BC_LENX2/2] = '\0';
+
+            // Try to mutate to every possible letter.
+            bc bc_A;
+            bc bc_C;
+            bc bc_G;
+            bc bc_T;
+
+            bool pass_A = false;
+            bool pass_C = false;
+            bool pass_G = false;
+            bool pass_T = false;
+
+            bc_str[npos] = 'A';
+            if (str2bc(bc_str, bc_A) && bc2idx.count(bc_A.to_ulong()) > 0){
+                pass_A = true;
+            } 
+            bc_str[npos] = 'C';
+            if (str2bc(bc_str, bc_C) && bc2idx.count(bc_C.to_ulong()) > 0){
+                pass_C = true;
+            }
+            bc_str[npos] = 'G';
+            if (str2bc(bc_str, bc_G) && bc2idx.count(bc_G.to_ulong()) > 0){
+                pass_G = true;
+            }
+            bc_str[npos] = 'T';
+            if (str2bc(bc_str, bc_T) && bc2idx.count(bc_T.to_ulong()) > 0){
+                pass_T = true;
+            }
+            if (pass_A && !pass_C && !pass_G && !pass_T){
+                return bc2idx[bc_A.to_ulong()];
+            }
+            else if (pass_C && !pass_A && !pass_G && !pass_T){
+                return bc2idx[bc_C.to_ulong()];
+            }
+            else if (pass_G && !pass_A && !pass_C && !pass_T){
+                return bc2idx[bc_G.to_ulong()];
+            }
+            else if (pass_T && !pass_A && !pass_C && !pass_G){
+                return bc2idx[bc_T.to_ulong()];
+            }
+            else{
+                return -1;
+            }
+        }
+    }
+    // If we've made it here, there are no Ns and the barcode does not fully match
+    // an existing barcode.
+    // Check for k-mer matches.
+
+    return -1;
+}

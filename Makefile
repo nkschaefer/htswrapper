@@ -4,7 +4,7 @@ PREFIX ?=/usr/local
 FLAGS=-std=c++11 --std=gnu++11 -fPIC
 IFLAGS=-I$(PREFIX)/include
 LFLAGS=-L$(PREFIX)/lib
-BC_LEN ?= 16
+BC_LENX2 ?= 32
 
 all: lib/libhtswrapper.so lib/libhtswrapper.a
 
@@ -18,7 +18,7 @@ build/bam.o: src/bam.cpp src/bam.h
 	$(COMP) $(IFLAGS) $(FLAGS) -c -o build/bam.o src/bam.cpp
 
 build/bc.o: src/bc.cpp src/bc.h
-	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LEN=$(BC_LEN) -c -o build/bc.o src/bc.cpp
+	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -c -o build/bc.o src/bc.cpp
 
 build/serialize.o: src/serialize.cpp src/serialize.h
 	$(COMP) $(IFLAGS) $(FLAGS) -c -o build/serialize.o src/serialize.cpp
