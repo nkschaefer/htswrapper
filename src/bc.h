@@ -37,5 +37,16 @@ std::string bc2str_rc(bc& this_bc);
 unsigned long hash_bc(std::string& barcode);
 unsigned long hash_bc(char* barcode);
 void parse_barcode_file(std::string& filename, std::set<unsigned long>& cell_barcodes);
+void parse_whitelists(std::string& whitelist_atac_filename,
+    std::string& whitelist_rna_filename, 
+    bcset& atac_bc2idx,
+    std::vector<unsigned long>& whitelist_rna,
+    bcset& rna_bc2idxi);
+int match_bc(const char* cur_bc,   
+    bool rc, 
+    bcset& bc2idx,
+    std::multimap<unsigned long, unsigned long>& kmer2bc);
+ 
+
 
 #endif

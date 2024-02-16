@@ -10,6 +10,7 @@
 #include <fstream>
 #include <sys/time.h>
 #include <zlib.h>
+#include "gzreader.h"
 #include "bc.h"
 
 using namespace std;
@@ -198,6 +199,7 @@ unsigned long hash_bc(char* barcode){
     return as_bitset.to_ulong();
 }
 
+
 /**
  * Load a filtered list of cell barcodes, gzipped or not.
  * 
@@ -205,62 +207,14 @@ unsigned long hash_bc(char* barcode){
  * barcode sequence, compresses the barcode, and interprets it 
  * as an unsigned long.
  *
- * File names ending with ".gz" are assumed to be gzipped;
- * File names not ending with ".gz" are assumed to be uncompressed.
  */
 void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
+   
+    gzreader reader(filename);
+    while (reader.next()){
+        cell_barcodes.insert(hash_bc(reader.line));
+    } 
     
-    if (filename.length() > 3 && filename.substr(filename.length()-3, 3) == ".gz"){
-        // Process gzipped file
-        int bufsize = 1024;
-        char buf[bufsize];
-        char strbuf[100];
-        gzFile inf = gzopen(filename.c_str(), "r");
-        int eof = 0;
-        int idx_start = 0;
-        while (!eof){
-            int nread = gzread(inf, &buf[idx_start], bufsize-idx_start);
-            eof = gzeof(inf);
-            if (nread < bufsize-idx_start){
-                eof = 1;
-            }
-            // Parse lines.
-            int line_start = 0;
-            for (int i = 0; i < nread; ++i){
-                if (buf[i] == '\n'){
-                    strncpy(&strbuf[0], &buf[line_start], i-line_start);
-                    strbuf[i-line_start] = '\0';
-                    string bc_str = strbuf;
-                    cell_barcodes.insert(hash_bc(bc_str));
-                    line_start = i + 1;
-                }
-            }
-            if (eof && line_start < nread){
-                // Get last bit
-                strncpy(&strbuf[0], &buf[line_start], nread-line_start);
-                buf[nread-line_start] = '\0';
-                string bc_str = strbuf;
-                cell_barcodes.insert(hash_bc(bc_str));
-            }
-            else if (line_start < bufsize){
-                // Need to copy what remains in buffer to beginning.
-                memmove(&buf[0], &buf[line_start], bufsize-line_start);
-                idx_start = bufsize-line_start;
-            }
-            else{
-                idx_start = 0;
-            }
-        }
-        gzclose(inf);
-    }
-    else{ 
-        // Read file the convenient way
-        ifstream infile(filename.c_str());
-        string bc_str;
-        while (infile >> bc_str){
-            cell_barcodes.insert(hash_bc(bc_str));
-        }    
-    }
     fprintf(stderr, "Read %ld barcodes from file\n", cell_barcodes.size());
 }
 
@@ -274,27 +228,27 @@ void parse_whitelists(string& whitelist_atac_filename,
     bcset& rna_bc2idx){
 
     if (whitelist_atac_filename != ""){
-        // Create scope to free temporary data structures
         ifstream wlfile_atac(whitelist_atac_filename);
         int bc_idx = 0;
         string line;
         bc atac_bc;
-
-        while(wlfile_atac >> line){
-            if (!str2bc(line.c_str(), atac_bc)){
-                fprintf(stderr, "ERROR: invalid barcode %s in ATAC whitelist\n", line.c_str());
+        
+        gzreader reader(whitelist_atac_filename);
+        while (reader.next()){
+            if (!str2bc(reader.line, atac_bc)){
+                fprintf(stderr, "ERROR: invalid barcode %s in ATAC whitelist\n", reader.line);
                 exit(1);
             }
-            //atac_bc2idx.insert(make_pair(atac_bc.to_ulong(), bc_idx));
             atac_bc2idx.emplace(atac_bc.to_ulong(), bc_idx);
             bc_idx++;
         }
+        
         // Now map these to RNA barcodes
-        ifstream wlfile_rna(whitelist_rna_filename);
+        gzreader reader2(whitelist_rna_filename);
         bc_idx = 0;
-        while(wlfile_rna >> line){
-            if (!str2bc(line.c_str(), atac_bc)){
-                fprintf(stderr, "ERROR: invalid barcode %s in RNA-seq whitelist\n", line.c_str());
+        while(reader2.next()){
+            if (!str2bc(reader2.line, atac_bc)){
+                fprintf(stderr, "ERROR: invalid barcode %s in RNA-seq whitelist\n", reader2.line);
                 exit(1);
             }
             whitelist_rna.push_back(atac_bc.to_ulong());
@@ -303,13 +257,13 @@ void parse_whitelists(string& whitelist_atac_filename,
         }
     }
     else if (whitelist_rna_filename != ""){
-        ifstream wlfile_rna(whitelist_rna_filename);
         int bc_idx = 0;
         string line;
         bc rna_bc;
-        while (wlfile_rna >> line){
-            if (!str2bc(line.c_str(), rna_bc)){
-                fprintf(stderr, "ERROR: invalid barcode %s in RNA whitelist\n", line.c_str());
+        gzreader reader(whitelist_rna_filename);
+        while(reader.next()){
+            if (!str2bc(reader.line, rna_bc)){
+                fprintf(stderr, "ERROR: invalid barcode %s in RNA whitelist\n", reader.line);
                 exit(1);
             }
             rna_bc2idx.emplace(rna_bc.to_ulong(), bc_idx);
@@ -328,6 +282,7 @@ int match_bc(const char* cur_bc,
     bool rc, 
     bcset& bc2idx,
     multimap<unsigned long, unsigned long>& kmer2bc){
+    
     static bc bc_binary;
     static char bc_str[BC_LENX2/2 + 1]; // For replacing N characters
 

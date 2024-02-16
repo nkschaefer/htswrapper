@@ -8,11 +8,11 @@ BC_LENX2 ?= 32
 
 all: lib/libhtswrapper.so lib/libhtswrapper.a
 
-lib/libhtswrapper.so: build/bam.o build/bc.o build/serialize.o
-	$(COMP) -shared $(IFLAGS) $(LFLAGS) -o lib/libhtswrapper.so build/bam.o build/bc.o build/serialize.o -lz -lhts
+lib/libhtswrapper.so: build/bam.o build/bc.o build/serialize.o build/gzreader.o
+	$(COMP) -shared $(IFLAGS) $(LFLAGS) -o lib/libhtswrapper.so build/bam.o build/bc.o build/serialize.o build/gzreader.o -lz -lhts
 
-lib/libhtswrapper.a: build/bam.o build/bc.o build/serialize.o
-	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/serialize.o
+lib/libhtswrapper.a: build/bam.o build/bc.o build/serialize.o build/gzreader.o
+	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/serialize.o build/gzreader.o
  
 build/bam.o: src/bam.cpp src/bam.h
 	$(COMP) $(IFLAGS) $(FLAGS) -c -o build/bam.o src/bam.cpp
@@ -22,6 +22,9 @@ build/bc.o: src/bc.cpp src/bc.h
 
 build/serialize.o: src/serialize.cpp src/serialize.h
 	$(COMP) $(IFLAGS) $(FLAGS) -c -o build/serialize.o src/serialize.cpp
+
+build/gzreader.o: src/gzreader.cpp src/gzreader.h
+	$(COMP) $(IFLAGS) $(FLAGS) -c -o build/gzreader.o src/gzreader.cpp
 
 clean:
 	rm build/*.o
@@ -33,6 +36,7 @@ install: | $(PREFIX)/lib $(PREFIX)/include/htswrapper
 	cp src/bam.h $(PREFIX)/include/htswrapper
 	cp src/bc.h $(PREFIX)/include/htswrapper
 	cp src/serialize.h $(PREFIX)/include/htswrapper
+	cp src/gzreader.h $(PREFIX)/include/htswrapper
 
 $(PREFIX)/lib:
 	mkdir -p $(PREFIX)/lib
