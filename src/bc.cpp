@@ -154,21 +154,27 @@ string bc2str_rc(bc& this_bc){
  * representation.
  *
  */
-unsigned long hash_bc(string& barcode){
-    // Strip anything that's not ACGT off the end of the sequence.
-    int ntrim = 0;
+unsigned long bc_ul(string& barcode){
+    // Look for any extra stuff (i.e. library IDs)
+    // common convention is to affix these to the beginning or end, with
+    // - or _ as a separator.
+    int sep_pos = -1;
+    // Look backward, since 10X puts them on the end.
     for (int i = barcode.length()-1; i >= 0; --i){
-        if (barcode[i] != 'A' && barcode[i] != 'C' &&
-            barcode[i] != 'G' && barcode[i] != 'T'){
-            // trim it.
-            ++ntrim;
-        }
-        else{
+        if (barcode[i] == '-' || barcode[i] == '_'){
+            sep_pos = i;
             break;
         }
     }
-    if (ntrim > 0){
-        barcode = barcode.substr(0, barcode.length()-ntrim);
+    if (sep_pos != -1){
+        if (barcode.length()-sep_pos < sep_pos){
+            // End of read
+            barcode = barcode.substr(0, sep_pos);
+        }
+        else{
+            // Beginning of read.
+            barcode = barcode.substr(sep_pos+1, barcode.length()-sep_pos-1);
+        }
     }
     bc as_bitset;
     str2bc(barcode.c_str(), as_bitset);
@@ -179,26 +185,34 @@ unsigned long hash_bc(string& barcode){
  * Same as above, but if working with a character buffer,
  * avoid copying into a std::string for speed
  */
-unsigned long hash_bc(char* barcode){
-    int ntrim = 0;
+unsigned long bc_ul(char* barcode){
+    // Look for any extra stuff (i.e. library IDs)
+    // common convention is to affix these to the beginning or end, with
+    // - or _ as a separator.
+    int sep_pos = -1;
+    // Look backward, since 10X puts them on the end.
     for (int i = strlen(barcode)-1; i >= 0; --i){
-        if (barcode[i] != 'A' && barcode[i] != 'C' &&
-            barcode[i] != 'G' && barcode[i] != 'T'){
-            // trim it.
-            ++ntrim;
-        }
-        else{
+        if (barcode[i] == '-' || barcode[i] == '_'){
+            sep_pos = i;
             break;
         }
     }
-    if (ntrim > 0){
-        barcode[strlen(barcode)-ntrim] = '\0';
+    if (sep_pos != -1){
+        if (strlen(barcode)-sep_pos < sep_pos){
+            // End of read
+            barcode[sep_pos] = '\0';
+        }
+        else{
+            // Beginning of read.
+            int len = strlen(barcode)-sep_pos-1;
+            memmove(&barcode[0], &barcode[sep_pos+1], len);
+            barcode[len] = '\0';
+        }
     }
     bc as_bitset;
     str2bc(barcode, as_bitset);
     return as_bitset.to_ulong();
 }
-
 
 /**
  * Load a filtered list of cell barcodes, gzipped or not.
@@ -212,7 +226,7 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
    
     gzreader reader(filename);
     while (reader.next()){
-        cell_barcodes.insert(hash_bc(reader.line));
+        cell_barcodes.insert(bc_ul(reader.line));
     } 
     
     fprintf(stderr, "Read %ld barcodes from file\n", cell_barcodes.size());

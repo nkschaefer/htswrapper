@@ -34,8 +34,8 @@ bool str2bc(const char* string, bc& this_bc);
 bool str2bc_rc(const char* string, bc& this_bc);
 std::string bc2str(bc& this_bc);
 std::string bc2str_rc(bc& this_bc);
-unsigned long hash_bc(std::string& barcode);
-unsigned long hash_bc(char* barcode);
+unsigned long bc_ul(std::string& barcode);
+unsigned long bc_ul(char* barcode);
 void parse_barcode_file(std::string& filename, std::set<unsigned long>& cell_barcodes);
 void parse_whitelists(std::string& whitelist_atac_filename,
     std::string& whitelist_rna_filename, 

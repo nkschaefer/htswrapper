@@ -22,9 +22,13 @@ gzreader::gzreader(string fn){
     
     // Check if file is gzipped.
     FILE* ftest = fopen(fn.c_str(), "r");
+    if (ftest == NULL){
+        fprintf(stderr, "ERROR: could not open file %s\n", fn.c_str());
+        exit(1);
+    }
     size_t testbytes = fread(&this->buf[0], sizeof(char), 2, ftest);
     if (testbytes < 2){
-        fprintf(stderr, "ERROR: could not open file %s\n", fn.c_str());
+        fprintf(stderr, "ERROR: could not read file %s\n", fn.c_str());
         exit(1);
     }
     fclose(ftest);
