@@ -1,11 +1,24 @@
-#ifndef BCHASH_H
-#define BCHASH_H
+#ifndef _HTSWRAPPER_BC_H
+#define _HTSWRAPPER_BC_H
 #include <utility>
 #include <cstdlib>
 #include <set>
+#include <unordered_set>
 #include <bitset>
 #include <string>
 #include <unordered_map>
+#include <vector>
+#include "robin_hood/robin_hood.h"
+
+// Represent cell barcodes
+typedef std::bitset<BC_LENX2> bc;
+
+// Represent k-mers for fuzzy matching cell barcodes
+// NOTE: KX2 must be less than BC_LENX2
+// Both must be divisible by 2
+typedef std::bitset<KX2> kmer;
+
+typedef std::unordered_map<unsigned long, int> bcset;
 
 // A hash function that could be used to speed up insertion/retrieval of hashed
 // barcodes to unordered maps
@@ -26,27 +39,123 @@ struct ulong_equal_func {
     }
 };
 
-// Designed to hold 16-base cell barcodes
-typedef std::bitset<BC_LENX2> bc;
-typedef std::unordered_map<unsigned long, int> bcset;
-
 bool str2bc(const char* string, bc& this_bc);
 bool str2bc_rc(const char* string, bc& this_bc);
+bool str2kmers(const char* string, int& start, kmer& cur_kmer);
+bool str2kmers_rc(const char* string, int& start, kmer& cur_kmer);
 std::string bc2str(bc& this_bc);
+std::string bc2str(unsigned long ul);
+std::string kmer2str(kmer& this_kmer);
 std::string bc2str_rc(bc& this_bc);
+std::string bc2str_rc(unsigned long ul);
+std::string kmer2str_rc(kmer& this_kmer);
+
 unsigned long bc_ul(std::string& barcode);
 unsigned long bc_ul(char* barcode);
 void parse_barcode_file(std::string& filename, std::set<unsigned long>& cell_barcodes);
-void parse_whitelists(std::string& whitelist_atac_filename,
-    std::string& whitelist_rna_filename, 
-    bcset& atac_bc2idx,
-    std::vector<unsigned long>& whitelist_rna,
-    bcset& rna_bc2idxi);
-int match_bc(const char* cur_bc,   
-    bool rc, 
-    bcset& bc2idx,
-    std::multimap<unsigned long, unsigned long>& kmer2bc);
- 
+
+// Class to represent barcode whitelists
+
+// For fuzzy matching
+struct matchinfo{
+    int first;
+    int last;
+    int count;
+    int gap;
+    matchinfo(){ first = -1; last = -1; count = 0; gap = 0; };
+    matchinfo(int f){ first = f; last = f; count = 0; gap = 0;};
+    matchinfo(const matchinfo& m){ first = m.first; last = m.last; count = m.count; gap = m.gap; };
+};
+
+// For storing k-mers for fuzzy matching
+// Implement as a hash table: key = unsigned long interpretation of kmer
+//  this is index into array of nodes
+//  nodes are linked lists
+
+struct kmer_lookup_node{
+    kmer_lookup_node* next;
+    unsigned long barcode;
+    kmer_lookup_node(unsigned long ul){ barcode = ul; next = NULL; };
+};
+
+class kmer_lookup{
+    private:
+        size_t n_kmers;
+        kmer_lookup_node** table;
+        kmer_lookup_node** table_last;
+        void free_members(kmer_lookup_node* n);
+        kmer_lookup_node* curnode;
+    public:
+        kmer_lookup();
+        ~kmer_lookup();
+        void insert(kmer& k, unsigned long barcode);
+        bool lookup(kmer& k, unsigned long& barcode);
+};
+
+class bc_whitelist{
+    private:
+
+        // One whitelist or two?
+        bool multiome;
+        
+        // For normal whitelists: a list of barcodes
+        //std::set<unsigned long> wl;
+        //std::unordered_set<unsigned long> wl;
+        robin_hood::unordered_flat_set<unsigned long> wl;
+        
+        // For multiome ATAC: look up the ATAC barcode and get an RNA-seq barcode
+        robin_hood::unordered_flat_map<unsigned long, unsigned long> wl2;
+        
+        // For fuzzy matching: how many indices into kmer lookup arrays do we need?
+        int n_kmer_buckets;
+        
+        // Look up barcode by shorter k-mer for fuzzy matching        
+        kmer_lookup kmer2bc;
+        kmer_lookup kmer2bc2;
+
+        // Parse a single whitelist
+        void parse_whitelist(std::string& filename);
+        // Parse two whitelists (multiome)
+        void parse_whitelist_pair(std::string& filename1, std::string& filename2);
+        
+        bc cur_bc;
+        kmer cur_kmer;
+        
+        bool mutate(const char* str, bool rc, std::vector<unsigned long>& alts);
+        bool fuzzy_count_barcode(unsigned long barcode, 
+            robin_hood::unordered_node_map<unsigned long, matchinfo>& matches,
+            int i, int& maxmatches);
+        unsigned long fuzzy_match(const char* str, bool rc, bool is_wl2, bool& success);
+        
+        unsigned long lookup_aux(const char* str, bool rc, bool is_wl2, bool& success);
+        
+        // Make sure variables were set correctly at compile time
+        void check_lengths();
+
+    public:
+        
+        bc_whitelist(std::string filename);
+        bc_whitelist(std::string filename, std::string filename2);
+        
+        // Look up a barcode in the first whitelist. Return success/failure
+        // and set the resulting key (on success) to the last parameter 
+        bool lookup(const char* str, bool rc, unsigned long& bc_ul);
+        
+        // Version that assumes not reverse complement
+        bool lookup(const char* str, unsigned long& bc_ul);
+
+        // Look up a barcode in the second whitelist. Return success/failure
+        // and set the resulting key (on success) to the last parameter.
+        // The resulting key is the key in the first whitelist corresponding
+        // to the barcode in the second whitelist. This is designed the way
+        // 10X Genomics does it for multiome data (first whitelist = RNA, 
+        // second whitelist = ATAC).
+        bool lookup2(const char* str, bool rc, unsigned long& bc_ul);
+        
+        // Version that assumes not reverse complement
+        bool lookup2(const char* str, unsigned long& bc_ul);
+
+};
 
 
 #endif
