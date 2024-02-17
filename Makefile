@@ -5,7 +5,7 @@ FLAGS=-std=c++11 --std=gnu++11 -fPIC
 IFLAGS=-I$(PREFIX)/include
 LFLAGS=-L$(PREFIX)/lib
 BC_LENX2 ?= 32
-KX2 ?= 14
+KX2 ?= 16
 
 all: lib/libhtswrapper.so lib/libhtswrapper.a
 

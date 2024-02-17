@@ -536,16 +536,42 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
 void bc_whitelist::check_lengths(){
     if (KX2/2 <= 1){
         fprintf(stderr, "ERROR: compiled with insufficiently large k (%d)\n", KX2/2);
-        fprintf(stderr, "Please re-compile and set KX2 between 4 and < %d\n", (BC_LENX2/2+1)/2);
+        fprintf(stderr, "Please re-compile and set KX2 between 4 and %d\n", (BC_LENX2/2+1)/2);
         exit(1);
     }
     // Make sure we compiled with a reasonable k-mer to barcode length ratio
-    if (KX2/2 >= (BC_LENX2/2+1)/2){
+    bool k_size_ok = true;
+    bool can_equal = false;
+    if ((BC_LENX2/2 % 2 == 0)){
+        // even barcode length.
+        // k must be less than (bc length + 1)/2, which is a fraction.
+        // k can therefore equal the integer division result.
+        if (KX2/2 > (BC_LENX2/2+1)/2){
+            k_size_ok = false;
+            can_equal = true;
+        }
+    }
+    else{
+        // odd barcode length.
+        // k must be less than (bc length + 1)/2
+        if (KX2/2 >= (BC_LENX2/2+1)/2){
+            k_size_ok = false;
+            can_equal = false;
+        }
+    }
+    if (!k_size_ok){
         fprintf(stderr, "ERROR: you compiled for %d base barcodes and fuzzy matching k-mer k = %d\n",
             BC_LENX2/2, KX2/2);
-        fprintf(stderr, "Maximum k-mer length for this barcode length is < %d\n", (BC_LENX2/2+1)/2);
-        fprintf(stderr, "Please re-compile and set KX2 to a number between 4 and < %d\n", 
+        string eqstr;
+        if (can_equal){
+            eqstr = "<=";
+        }
+        else{
+            eqstr = "<";
+        }
+        fprintf(stderr, "Maximum k-mer length for this barcode length is %s %d\n", eqstr.c_str(),
             (BC_LENX2/2+1)/2);
+        fprintf(stderr, "Please re-compile with KX2= a suitable number\n");
         exit(1);
     }
     if (BC_LENX2 > sizeof(unsigned long) * CHAR_BIT){
