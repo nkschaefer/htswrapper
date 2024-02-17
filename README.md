@@ -14,7 +14,7 @@ Default barcode length is set to the current 10X Genomics standard (and maximum 
 
 To do this, specify `BC_LENX2=[your value]` and `KX2=[your value]` when running make. If you want to use 14-base barcodes instead of 16-base barcodes, for example, run
 
-`make BC_LENX2=28 KX2=7`
+`make BC_LENX2=28 KX2=14`
 
 ### bam.cpp
 A class that wraps HTSLib's BAM reader to make it easier to use and remember how to access stuff
