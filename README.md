@@ -1,6 +1,12 @@
 # htswrapper
 Collection of handy things for code dealing with high throughput sequencing data
 
+## Details/installation
+Default barcode length is set to the current 10X Genomics value (and maximum possible value for interpreting as an integer and thus not breaking all of this code): 16. K-mers for fuzzy matching of barcodes should be set at their maximum length for best performance, which is $\lfloor\frac{L+1}{2}\rfloor$, in this case 7. If you want to change these values, you need to tell the compiler to make the corresponding bitsets twice as wide. 
+
+To do this, specify `BC_LENX2=[your value]` and `KX2=[your value]` when running make. If you want to use 14-base barcodes, for example, run
+`make BC_LENX2=28 KX2=7`
+
 ### bam.cpp
 A class that wraps HTSLib's BAM reader to make it easier to use and remember how to access stuff
 
