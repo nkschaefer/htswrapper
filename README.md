@@ -2,9 +2,11 @@
 Collection of handy things for code dealing with high throughput sequencing data
 
 ## Details/installation
-Default barcode length is set to the current 10X Genomics value (and maximum possible value for interpreting as an integer and thus not breaking all of this code): 16. K-mers for fuzzy matching of barcodes should be set at their maximum length for best performance, which is $\lfloor\frac{L+1}{2}\rfloor$, in this case 7. If you want to change these values, you need to tell the compiler to make the corresponding bitsets twice as wide. 
+Because barcodes are represented as bitsets, their length (and the bitset width) has to be set at compile time. This is done through two variables present in the Makefile: `BC_LENX2`, which is two times the barcode length, and `KX2`, which is two times the k-mer length for fuzzy barcode matching.
 
-To do this, specify `BC_LENX2=[your value]` and `KX2=[your value]` when running make. If you want to use 14-base barcodes, for example, run
+Default barcode length is set to the current 10X Genomics standard (and maximum possible value for interpreting a bitset an integer and thus not breaking all of this code): 16. For barcodes of length $L$, K-mers for fuzzy matching should be set at their maximum possible length for best performance, which is $\lfloor\frac{L+1}{2}\rfloor$. In the default case of 16-base barcodes, this is 8. If you want to change these values, you need to tell the compiler to make the corresponding bitsets twice as wide. 
+
+To do this, specify `BC_LENX2=[your value]` and `KX2=[your value]` when running make. If you want to use 14-base barcodes instead of 16-base barcodes, for example, run
 `make BC_LENX2=28 KX2=7`
 
 ### bam.cpp
