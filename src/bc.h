@@ -94,6 +94,8 @@ class kmer_lookup{
 
 class bc_whitelist{
     private:
+        
+        bool initialized;
 
         // One whitelist or two?
         bool multiome;
@@ -134,6 +136,9 @@ class bc_whitelist{
 
     public:
         
+        bc_whitelist();
+        void init(std::string filename);
+        void init(std::string filename, std::string filename2);
         bc_whitelist(std::string filename);
         bc_whitelist(std::string filename, std::string filename2);
         
@@ -154,6 +159,15 @@ class bc_whitelist{
         
         // Version that assumes not reverse complement
         bool lookup2(const char* str, unsigned long& bc_ul);
+
+        bool lookup1_bf(const char* str, unsigned long& bc_ul);
+        bool lookup1_ef(const char* str, unsigned long& bc_ul);
+        bool lookup1_br(const char* str, unsigned long& bc_ul);
+        bool lookup1_er(const char* str, unsigned long& bc_ul);
+        bool lookup2_bf(const char* str, unsigned long& bc_ul);
+        bool lookup2_ef(const char* str, unsigned long& bc_ul);
+        bool lookup2_br(const char* str, unsigned long& bc_ul);
+        bool lookup2_er(const char* str, unsigned long& bc_ul);
 
 };
 

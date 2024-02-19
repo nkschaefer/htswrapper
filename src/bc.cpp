@@ -581,12 +581,8 @@ void bc_whitelist::check_lengths(){
     }
 }
 
-/**
- * Constructor for single whitelist (i.e. cellranger RNA)
- */
-bc_whitelist::bc_whitelist(string name){
+void bc_whitelist::init(string name){
     check_lengths(); 
-    
     kmer k;
     k.reset();
     for (int i = 0; i < KX2; ++i){
@@ -598,17 +594,11 @@ bc_whitelist::bc_whitelist(string name){
     //wl.max_load_factor(0.8);
     this->parse_whitelist(name);
     this->multiome = false;
+    initialized = true;
 }
 
-/**
- * Constructor for two whitelists, where lines correspond to each
- * other in the two files and we want to use the barcode from the
- * first one in the BAM, etc.
- * (i.e. cellranger multiome: wl1 = RNA, wl2 = ATAC)
- */
-bc_whitelist::bc_whitelist(string name1, string name2){
+void bc_whitelist::init(string name1, string name2){
     check_lengths();
-
     kmer k;
     k.reset();
     for (int i = 0; i < KX2; ++i){
@@ -622,6 +612,28 @@ bc_whitelist::bc_whitelist(string name1, string name2){
     //wl2.max_load_factor(0.8);
     this->parse_whitelist_pair(name1, name2);
     this->multiome = true;
+    initialized = true;
+}
+
+/**
+ * Constructor for single whitelist (i.e. cellranger RNA)
+ */
+bc_whitelist::bc_whitelist(string name){
+   init(name); 
+}
+
+/**
+ * Constructor for two whitelists, where lines correspond to each
+ * other in the two files and we want to use the barcode from the
+ * first one in the BAM, etc.
+ * (i.e. cellranger multiome: wl1 = RNA, wl2 = ATAC)
+ */
+bc_whitelist::bc_whitelist(string name1, string name2){
+    init(name1, name2);
+}
+
+bc_whitelist::bc_whitelist(){
+    initialized = false;
 }
 
 /**
@@ -888,7 +900,10 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
  * Look up a string for matches in a single barcode whitelist.
  */
 unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bool& success){
-    
+    if (!initialized){
+        fprintf(stderr, "ERROR: whitelist not initialized\n");
+        return false;
+    }
     bool try_mut = false;
     bool try_kmers = false;
 
@@ -1031,3 +1046,48 @@ bool bc_whitelist::lookup2(const char* str, bool rc, unsigned long& ul){
 bool bc_whitelist::lookup2(const char* str, unsigned long& ul){
     return lookup2(str, false, ul);
 }
+
+/**
+ * Convenience functions to help remember how to look up different types of barcodes.
+ */
+
+// whitelist 1, beginning of read, forward
+bool bc_whitelist::lookup1_bf(const char* str, unsigned long& ul){
+    return lookup(str, false, ul);
+}
+
+// whitelist 1, beginning of read, reverse complement
+bool bc_whitelist::lookup1_br(const char* str, unsigned long& ul){
+    return lookup(str, true, ul);
+}
+
+// whitelist 1, end of read, forward
+bool bc_whitelist::lookup1_ef(const char* str, unsigned long& ul){
+    return lookup(str + strlen(str) - BC_LENX2/2, false, ul);
+}
+
+// whitelist 1, end of read, reverse complement
+bool bc_whitelist::lookup1_er(const char* str, unsigned long& ul){
+    return lookup(str + strlen(str) - BC_LENX2/2, true, ul);
+}
+
+// whitelist 2, beginning of read, forward
+bool bc_whitelist::lookup2_bf(const char* str, unsigned long& ul){
+    return lookup2(str, false, ul);
+}
+
+// whitelist 2, beginning of read, reverse complement
+bool bc_whitelist::lookup2_br(const char* str, unsigned long& ul){
+    return lookup2(str, true, ul);
+}
+
+// whitelist 2, end of read, forward
+bool bc_whitelist::lookup2_ef(const char* str, unsigned long& ul){
+    return lookup2(str + strlen(str) - BC_LENX2/2, false, ul);
+}
+
+// whitelist 2, end of read, reverse complement
+bool bc_whitelist::lookup2_er(const char* str, unsigned long& ul){
+    return lookup2(str + strlen(str) - BC_LENX2/2, true, ul);
+}
+
