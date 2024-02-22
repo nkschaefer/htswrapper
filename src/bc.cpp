@@ -1051,43 +1051,103 @@ bool bc_whitelist::lookup2(const char* str, unsigned long& ul){
  * Convenience functions to help remember how to look up different types of barcodes.
  */
 
+// Remove a barcode from the beginning of a read.
+void bc_whitelist::trim_begin(char* str){
+    int nremain = strlen(str)-BC_LENX2/2;
+    memmove(&str[0], &str[BC_LENX2/2], nremain);
+    str[nremain] = '\0';
+}
+
+// Remove a barcode from the end of a read.
+void bc_whitelist::trim_end(char* str){
+    str[strlen(str)-BC_LENX2/2] = '\0';
+}
+
 // whitelist 1, beginning of read, forward
-bool bc_whitelist::lookup1_bf(const char* str, unsigned long& ul){
-    return lookup(str, false, ul);
+bool bc_whitelist::lookup1_bf(char* str, unsigned long& ul, bool trim){
+    if (lookup(str, false, ul)){
+        if (trim){
+            trim_begin(str);
+        }
+        return true;
+    }
+    return false;
 }
 
 // whitelist 1, beginning of read, reverse complement
-bool bc_whitelist::lookup1_br(const char* str, unsigned long& ul){
-    return lookup(str, true, ul);
+bool bc_whitelist::lookup1_br(char* str, unsigned long& ul, bool trim){
+    if (lookup(str, true, ul)){
+        if (trim){
+            trim_begin(str);
+        }
+        return true;
+    }
+    return false;
 }
 
 // whitelist 1, end of read, forward
-bool bc_whitelist::lookup1_ef(const char* str, unsigned long& ul){
-    return lookup(str + strlen(str) - BC_LENX2/2, false, ul);
+bool bc_whitelist::lookup1_ef(char* str, unsigned long& ul, bool trim){
+    if (lookup(str + strlen(str) - BC_LENX2/2, false, ul)){
+        if (trim){
+            trim_end(str);
+        }
+        return true;
+    }
+    return false;
 }
 
 // whitelist 1, end of read, reverse complement
-bool bc_whitelist::lookup1_er(const char* str, unsigned long& ul){
-    return lookup(str + strlen(str) - BC_LENX2/2, true, ul);
+bool bc_whitelist::lookup1_er(char* str, unsigned long& ul, bool trim){
+    if (lookup(str + strlen(str) - BC_LENX2/2, true, ul)){
+        if (trim){
+            trim_end(str);
+        }
+        return true;
+    }
+    return false;
 }
 
 // whitelist 2, beginning of read, forward
-bool bc_whitelist::lookup2_bf(const char* str, unsigned long& ul){
-    return lookup2(str, false, ul);
+bool bc_whitelist::lookup2_bf(char* str, unsigned long& ul, bool trim){
+    if (lookup2(str, false, ul)){
+        if (trim){
+            trim_begin(str);
+        }
+        return true;
+    }
+    return false;
 }
 
 // whitelist 2, beginning of read, reverse complement
-bool bc_whitelist::lookup2_br(const char* str, unsigned long& ul){
-    return lookup2(str, true, ul);
+bool bc_whitelist::lookup2_br(char* str, unsigned long& ul, bool trim){
+    if (lookup2(str, true, ul)){
+        if (trim){
+            trim_begin(str);
+        }
+        return true;
+    }
+    return false;
 }
 
 // whitelist 2, end of read, forward
-bool bc_whitelist::lookup2_ef(const char* str, unsigned long& ul){
-    return lookup2(str + strlen(str) - BC_LENX2/2, false, ul);
+bool bc_whitelist::lookup2_ef(char* str, unsigned long& ul, bool trim){
+    if (lookup2(str + strlen(str) - BC_LENX2/2, false, ul)){
+        if (trim){
+            trim_end(str);
+        }
+        return true;
+    }
+    return false;
 }
 
 // whitelist 2, end of read, reverse complement
-bool bc_whitelist::lookup2_er(const char* str, unsigned long& ul){
-    return lookup2(str + strlen(str) - BC_LENX2/2, true, ul);
+bool bc_whitelist::lookup2_er(char* str, unsigned long& ul, bool trim){
+    if (lookup2(str + strlen(str) - BC_LENX2/2, true, ul)){
+        if (trim){
+            trim_end(str);
+        }
+        return true;
+    }
+    return false;
 }
 
