@@ -18,8 +18,6 @@ typedef std::bitset<BC_LENX2> bc;
 // Both must be divisible by 2
 typedef std::bitset<KX2> kmer;
 
-typedef std::unordered_map<unsigned long, int> bcset;
-
 // A hash function that could be used to speed up insertion/retrieval of hashed
 // barcodes to unordered maps
 

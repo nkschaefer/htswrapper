@@ -97,7 +97,6 @@ class bc_scanner{
         void init_10x_multiome_RNA(std::string wlfile, std::string wlfile2);
         void init_10x_multiome_ATAC(std::string wlfile, std::string wlfile2);
         void init_10x_featureBarcode(std::string wlfile);
-
         // Tell whether or not to remove barcodes.
         void trim_barcodes(bool trim);
 

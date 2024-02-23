@@ -13,8 +13,6 @@
 
 using namespace std;
 
-//KSEQ_INIT(gzFile, gzread);
-
 bc_scanner::bc_scanner(string seqfile){
     set_defaults();
     seq1_fp = gzopen(seqfile.c_str(), "r");
