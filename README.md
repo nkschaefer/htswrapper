@@ -28,6 +28,9 @@ Functionality to make it easier to deal with cell barcodes, bit-packed and inter
     * Barcode lookup is fast: relies on [robin_hood](https://github.com/martinus/robin-hood-hashing) hash maps and hash sets instead of `std::unordered_map` and `std::unordered_set`
     * k-mer lookup is fast: k-mers are directly interpreted as indices into an array of linked lists of cell barcodes
 
+### bc_scanner.cpp
+Builds on `bc.cpp` to provide a class that iterates through a set of FASTQ files and finds (fuzzy) matches to barcodes in an allowed list. Provides access to each matched read's ID, sequence, and barcode via the `next()` method, and provides the option to trim barcodes from sequences.
+
 ### gzreader.cpp
 A convenience class that makes it easy to read through a file line by line, whether gzipped or not. Automatically detects whether the file is gzipped and handles buffering.
 
