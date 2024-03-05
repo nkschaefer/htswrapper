@@ -20,10 +20,10 @@ using namespace std;
  * Convert a DNA sequence from string to bitset
  * representation
  */
-bool str2bc(const char* str, bc& this_bc){
+bool str2bc(const char* str, bc& this_bc, int len){
     this_bc.reset();
     int bcbit = 0;
-    for (int i = 0; i < BC_LENX2/2; ++i){
+    for (int i = 0; i < len; ++i){
         switch(str[i]){
             case 'A':
             case 'a':
@@ -53,13 +53,13 @@ bool str2bc(const char* str, bc& this_bc){
     return true;
 }
 
-bool str2kmers(const char* str, int& start, kmer& cur_kmer){
-    if (start > BC_LENX2/2 - KX2/2){
+bool str2kmers(const char* str, int& start, kmer& cur_kmer, int k, int bc_len){
+    if (start > bc_len - k){
         return false;
     }
     cur_kmer.reset();
     int kmerbit = 0;
-    for (int i = start; i < start + KX2/2; ++i){
+    for (int i = start; i < start + k; ++i){
         switch(str[i]){
             case 'A':
             case 'a':
@@ -95,10 +95,10 @@ bool str2kmers(const char* str, int& start, kmer& cur_kmer){
  * Convert a DNA sequence from string to bitset format,
  * in reverse complement orientation
  */
-bool str2bc_rc(const char* str, bc& this_bc){
+bool str2bc_rc(const char* str, bc& this_bc, int len){
     this_bc.reset();
     int bcbit = 0;
-    for (int i = BC_LENX2/2-1; i >= 0; --i){
+    for (int i = len-1; i >= 0; --i){
         switch(str[i]){
             case 'T':
             case 't':
@@ -132,17 +132,17 @@ bool str2bc_rc(const char* str, bc& this_bc){
  * Convert a DNA sequence from string to bitset format,
  * in reverse complement orientation
  */
-bool str2kmers_rc(const char* str, int& start, kmer& cur_kmer){
+bool str2kmers_rc(const char* str, int& start, kmer& cur_kmer, int k, int bc_len){
     cur_kmer.reset();
     int kmerbit = 0;
     if (start == -1){
         // initialize start position
-        start = BC_LENX2/2-1;
+        start = bc_len-1;
     }
-    else if (start < KX2/2-1){
+    else if (start < k-1){
         return false;
     }
-    for (int i = start; i >= start-KX2/2+1; --i){
+    for (int i = start; i >= start-k+1; --i){
         switch(str[i]){
             case 'T':
             case 't':
@@ -177,10 +177,10 @@ bool str2kmers_rc(const char* str, int& start, kmer& cur_kmer){
  * Convert a bitset representation of a DNA sequence
  * to a string representation
  */
-string bc2str(bc& this_bc){
-    char strbuf[BC_LENX2/2+1];
-    strbuf[BC_LENX2/2] = '\0';
-    for (int i = 0; i < BC_LENX2/2; ++i){
+string bc2str(const bc& this_bc, int len){
+    char strbuf[len+1];
+    strbuf[len] = '\0';
+    for (int i = 0; i < len; ++i){
         if (this_bc.test(i*2)){
             if (this_bc.test(i*2+1)){
                 strbuf[i] = 'T';
@@ -201,16 +201,16 @@ string bc2str(bc& this_bc){
     return string(strbuf);
 }
 
-string bc2str(unsigned long ul){
+string bc2str(const unsigned long ul, int len){
     bc as_bc(ul);
-    return bc2str(as_bc);
+    return bc2str(as_bc, len);
 }
 
 /**
  * Convert a bitset representation of a DNA sequence
  * to a string representation
  */
-string kmer2str(kmer& this_bc){
+string kmer2str(const kmer& this_bc){
     char strbuf[KX2/2+1];
     strbuf[KX2/2] = '\0';
     for (int i = 0; i < KX2/2; ++i){
@@ -239,7 +239,7 @@ string kmer2str(kmer& this_bc){
  * to a string representation, in reverse complement
  * orientation.
  */
-string bc2str_rc(bc& this_bc){
+string bc2str_rc(const bc& this_bc){
     char strbuf[BC_LENX2/2+1];
     strbuf[BC_LENX2/2] = '\0';
     int buf_idx = 0;
@@ -265,7 +265,7 @@ string bc2str_rc(bc& this_bc){
     return string(strbuf);
 }
 
-string bc2str_rc(unsigned long ul){
+string bc2str_rc(const unsigned long ul){
     bc as_bits(ul);
     return bc2str_rc(as_bits);
 }
@@ -275,7 +275,7 @@ string bc2str_rc(unsigned long ul){
  * to a string representation, in reverse complement
  * orientation.
  */
-string kmer2str_rc(kmer& this_bc){
+string kmer2str_rc(const kmer& this_bc){
     char strbuf[KX2/2+1];
     strbuf[KX2/2] = '\0';
     int buf_idx = 0;
@@ -467,27 +467,34 @@ bool kmer_lookup::lookup(kmer& k, unsigned long& barcode){
     }
 }
 
+void bc_whitelist::parse_whitelist_line(const char* line){
+    if (!str2bc(line, cur_bc, bc_len)){
+        fprintf(stderr, "ERROR: invalid barcode %s in allowed barcode list\n", line);
+        exit(1);
+    }
+    unsigned long bc_ul = cur_bc.to_ulong();
+    wl.insert(bc_ul);
+    int start = 0;
+    while(str2kmers(line, start, cur_kmer, k, bc_len)){
+        kmer2bc.insert(cur_kmer, bc_ul);
+    }
+}
+
 void bc_whitelist::parse_whitelist(string& name){ 
     fprintf(stderr, "Loading allowed barcode list...\n");
-    int bc_idx = 0;
     bc cur_bc;
     kmer cur_kmer;
     gzreader reader(name);
     while(reader.next()){
-        if (!str2bc(reader.line, cur_bc)){
-            fprintf(stderr, "ERROR: invalid barcode %s in allowed barcode list\n", reader.line);
-            exit(1);
-        }
-        unsigned long bc_ul = cur_bc.to_ulong();
-        wl.insert(bc_ul);
-        int start = 0;
-        while(str2kmers(reader.line, start, cur_kmer)){
-            //kmer2bc.insert(make_pair(cur_kmer.to_ulong(), bc_ul));
-            kmer2bc.insert(cur_kmer, bc_ul);
-        }
-        bc_idx++;
+        parse_whitelist_line(reader.line);
     }
     fprintf(stderr, "done\n");
+}
+
+void bc_whitelist::parse_whitelist(vector<string>& bcs){
+    for (int i = 0; i < bcs.size(); ++i){
+        parse_whitelist_line(bcs[i].c_str());
+    }
 }
 
 /**
@@ -501,7 +508,7 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
     kmer cur_kmer;
     gzreader reader(name1);
     while (reader.next()){
-        if (!str2bc(reader.line, cur_bc)){
+        if (!str2bc(reader.line, cur_bc, bc_len)){
             fprintf(stderr, "ERROR: invalid barcode %s in allowed barcode list\n", reader.line);
             exit(1);
         }
@@ -510,14 +517,14 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
         // We'll need to look this up by index later.
         firstwl.push_back(bc_ul);
         int start = 0;
-        while(str2kmers(reader.line, start, cur_kmer)){
+        while(str2kmers(reader.line, start, cur_kmer, k, bc_len)){
             kmer2bc.insert(cur_kmer, bc_ul);
         }
     } 
     gzreader reader2(name2);
     int bc_idx = 0;
     while(reader2.next()){
-        if (!str2bc(reader2.line, cur_bc)){
+        if (!str2bc(reader2.line, cur_bc, bc_len)){
             fprintf(stderr, "ERROR: invalid barcode %s in whitelist\n", reader2.line);
             exit(1);
         }
@@ -525,7 +532,7 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
         unsigned long bc_ul_first = firstwl[bc_idx];
         wl2.emplace(bc_ul, bc_ul_first);
         int start = 0;
-        while(str2kmers(reader2.line, start, cur_kmer)){
+        while(str2kmers(reader2.line, start, cur_kmer, k, bc_len)){
             kmer2bc2.insert(cur_kmer, bc_ul);
         }
         ++bc_idx;
@@ -581,45 +588,57 @@ void bc_whitelist::check_lengths(){
     }
 }
 
-void bc_whitelist::init(string name){
-    check_lengths(); 
-    kmer k;
-    k.reset();
-    for (int i = 0; i < KX2; ++i){
-        k.set(i);
-    }
-    n_kmer_buckets = k.to_ulong();
-
-    // Uncomment if using std::unordered_set
-    //wl.max_load_factor(0.8);
-    this->parse_whitelist(name);
-    this->multiome = false;
-    initialized = true;
-}
-
-void bc_whitelist::init(string name1, string name2){
+void bc_whitelist::init_aux(int bc_len, int k){
+    // Ensure everything was compiled correctly
     check_lengths();
-    kmer k;
-    k.reset();
+
+    // Determine how many spaces we need in k-mer lookup lists
+    kmer mer;
+    mer.reset();
     for (int i = 0; i < KX2; ++i){
-        k.set(i);
+        mer.set(i);
     }
-    n_kmer_buckets = k.to_ulong();
+    n_kmer_buckets = mer.to_ulong();
+    
+    // Store lengths
+    this->bc_len = bc_len;
+    this->k = k;
+    
+    // Default to allow fuzzy matching
+    this->exact_only = false;
 
     // Uncomment if using std::unordered_set
     //wl.max_load_factor(0.8);
     // Uncomment if using std::unordered_map
     //wl2.max_load_factor(0.8);
+}
+
+void bc_whitelist::init(string name, int bc_len, int k){
+    init_aux(bc_len, k);
+    this->parse_whitelist(name);
+    this->multiome = false;
+    initialized = true;
+}
+
+void bc_whitelist::init(string name1, string name2, int bc_len, int k){
+    init_aux(bc_len, k);
     this->parse_whitelist_pair(name1, name2);
     this->multiome = true;
+    initialized = true;
+}
+
+void bc_whitelist::init(vector<string>& bcs, int bc_len, int k){
+    init_aux(bc_len, k);
+    this->parse_whitelist(bcs);
+    this->multiome = false;
     initialized = true;
 }
 
 /**
  * Constructor for single whitelist (i.e. cellranger RNA)
  */
-bc_whitelist::bc_whitelist(string name){
-   init(name); 
+bc_whitelist::bc_whitelist(string name, int bc_len, int k){
+   init(name, bc_len, k); 
 }
 
 /**
@@ -628,12 +647,24 @@ bc_whitelist::bc_whitelist(string name){
  * first one in the BAM, etc.
  * (i.e. cellranger multiome: wl1 = RNA, wl2 = ATAC)
  */
-bc_whitelist::bc_whitelist(string name1, string name2){
-    init(name1, name2);
+bc_whitelist::bc_whitelist(string name1, string name2, int bc_len, int k){
+    init(name1, name2, bc_len, k);
+}
+
+bc_whitelist::bc_whitelist(vector<string>& bcs, int bc_len, int k){
+    init(bcs, bc_len, k);
 }
 
 bc_whitelist::bc_whitelist(){
     initialized = false;
+}
+
+void bc_whitelist::exact_matches_only(){
+    exact_only = true;
+}
+
+void bc_whitelist::allow_mismatch(){
+    exact_only = false;
 }
 
 /**
@@ -641,51 +672,72 @@ bc_whitelist::bc_whitelist(){
  * If it contains more than one N, give up.
  */
 bool bc_whitelist::mutate(const char* str, bool rc, vector<unsigned long>& alts){
-    char strcpy[strlen(str)+1];
-    strcpy[strlen(str)] = '\0';
+    if (this->exact_only){
+        return true;
+    }
+
+    char strcpy[bc_len+1];
+    strcpy[bc_len] = '\0';
 
     int npos = -1;
-    for (int i = 0; i < strlen(str); ++i){
-        strcpy[i] = str[i];
-        if (str[i] == 'N' || str[i] == 'n'){
-            if (npos != -1){
-                // Multiple N
-                return false;
+
+    if (rc){
+        int i2 = 0;
+        for (int i = strlen(str)-bc_len; i < strlen(str); ++i){
+            strcpy[i2] = str[i];
+            if (str[i] == 'N' || str[i] == 'n'){
+                if (npos != -1){
+                    // Multiple N
+                    return false;
+                }
+                npos = i2;
             }
-            npos = i;
+            ++i2;
+        }
+    }
+    else{
+        for (int i = 0; i < bc_len; ++i){
+            strcpy[i] = str[i];
+            if (str[i] == 'N' || str[i] == 'n'){
+                if (npos != -1){
+                    // Multiple N
+                    return false;
+                }
+                npos = i;
+            }
         }
     }
 
     strcpy[npos] = 'A';
     if (rc){
-        str2bc_rc(strcpy, cur_bc);
+        str2bc_rc(strcpy, cur_bc, bc_len);
     }
     else{
-        str2bc(strcpy, cur_bc);
+        str2bc(strcpy, cur_bc, bc_len);
     }
     alts.push_back(cur_bc.to_ulong());
     strcpy[npos] = 'C';
     if (rc){
-        str2bc_rc(strcpy, cur_bc);
+        str2bc_rc(strcpy, cur_bc, bc_len);
     }
     else{
-        str2bc(strcpy, cur_bc);
+        str2bc(strcpy, cur_bc, bc_len);
     }
     alts.push_back(cur_bc.to_ulong());
     strcpy[npos] = 'G';
     if (rc){
-        str2bc_rc(strcpy, cur_bc);
+        str2bc_rc(strcpy, cur_bc, bc_len);
     }
     else{
-        str2bc(strcpy, cur_bc);
+        str2bc(strcpy, cur_bc, bc_len);
     }
     alts.push_back(cur_bc.to_ulong());
     strcpy[npos] = 'T';
     if (rc){
-        str2bc_rc(strcpy, cur_bc);
+        str2bc_rc(strcpy, cur_bc, bc_len);
     }
     else{
-        str2bc(strcpy, cur_bc);
+        str2bc(strcpy, cur_bc, bc_len);
     }
     alts.push_back(cur_bc.to_ulong());
     return true;
@@ -705,8 +757,8 @@ bool bc_whitelist::fuzzy_count_barcode(unsigned long barcode,
      int& maxmatches){
     
     // Don't bother with it if it can't reach threshold.
-    if (i > KX2/2 && (matches.count(barcode) == 0 ||
-        matches[barcode].count < i-KX2/2)){
+    if (i > k && (matches.count(barcode) == 0 ||
+        matches[barcode].count < i-k)){
         // skip
     }
     else{
@@ -721,7 +773,7 @@ bool bc_whitelist::fuzzy_count_barcode(unsigned long barcode,
 
         if (matches[barcode].count > maxmatches){
             maxmatches = matches[barcode].count;
-            if (maxmatches < i-KX2/2){
+            if (maxmatches < i-k){
                 return true;
             }
         }
@@ -763,6 +815,11 @@ bool bc_whitelist::fuzzy_count_barcode(unsigned long barcode,
  */
 unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, bool& success){
     
+    if (this->exact_only){
+        success = false;
+        return 0;
+    }
+
     robin_hood::unordered_node_map<unsigned long, matchinfo> matches;
     int maxmatches = 0;
     unsigned long mm_bc;
@@ -772,7 +829,7 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
     int i = 0;
     if (rc){
         int start = -1;
-        while(str2kmers_rc(str, start, cur_kmer)){
+        while(str2kmers_rc(str, start, cur_kmer, k, bc_len)){
             if (is_wl2){
                 while(kmer2bc2.lookup(cur_kmer, cur_bc)){
                     if (fuzzy_count_barcode(cur_bc, matches, i, maxmatches)){
@@ -794,7 +851,7 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
     }
     else{
         int start = 0;
-        while (str2kmers(str, start, cur_kmer)){
+        while (str2kmers(str, start, cur_kmer, k, bc_len)){
             if (is_wl2){
                 while(kmer2bc2.lookup(cur_kmer, cur_bc)){
                     if (fuzzy_count_barcode(cur_bc, matches, i, maxmatches)){
@@ -824,17 +881,17 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
     
     bc bc_this;
     if (rc){
-        str2bc_rc(str, bc_this);
+        str2bc_rc(str, bc_this, bc_len);
     }
     else{
-        str2bc(str, bc_this);
+        str2bc(str, bc_this, bc_len);
     }
 
     for (robin_hood::unordered_node_map<unsigned long, matchinfo>::iterator m = 
         matches.begin(); m != matches.end(); ++m){
-        if (m->second.count >= BC_LENX2/2-KX2+1 && !(m->second.first > 0 && m->second.last < 
-            BC_LENX2/2-KX2/2) && !(m->second.gap > 0 && (m->second.first > 0 || m->second.last < 
-            BC_LENX2/2-KX2/2))){
+        if (m->second.count >= bc_len - 2*k + 1 && !(m->second.first > 0 && m->second.last < 
+            bc_len-k) && !(m->second.gap > 0 && (m->second.first > 0 || m->second.last < 
+            bc_len-k))){
            
             // Do string comparison.
             bc other(m->first);
@@ -844,7 +901,7 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
             // Use match info to determine which end to start looking from
             //if ((!rc && m->second.first > 0) || (rc && m->second.last < BC_LENX2/2-KX2/2+1)){
              if (m->second.first > 0){
-                for (int i = 0; i < BC_LENX2/2; ++i){
+                for (int i = 0; i < bc_len; ++i){
                     if (other.test(i*2) == bc_this.test(i*2) && 
                         other.test(i*2+1) == bc_this.test(i*2+1)){
                         // pass
@@ -858,7 +915,7 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
                 }
             }
             else{
-                for (int i = BC_LENX2/2-1; i >= 0; i--){
+                for (int i = bc_len-1; i >= 0; i--){
                     if (other.test(i*2) == bc_this.test(i*2) && 
                         other.test(i*2+1) == bc_this.test(i*2+1)){
                         // pass
@@ -908,7 +965,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
     bool try_kmers = false;
 
     if (rc){
-        if (str2bc_rc(str, cur_bc)){ 
+        if (str2bc_rc(str, cur_bc, bc_len)){ 
             unsigned long ul = cur_bc.to_ulong();
             if (is_wl2){
                 if (wl2.count(ul) > 0){
@@ -936,7 +993,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
         }
     }
     else{
-        if (str2bc(str, cur_bc)){
+        if (str2bc(str, cur_bc, bc_len)){
             unsigned long ul = cur_bc.to_ulong();
             if (is_wl2){
                 if (wl2.count(ul) > 0){
@@ -1053,14 +1110,14 @@ bool bc_whitelist::lookup2(const char* str, unsigned long& ul){
 
 // Remove a barcode from the beginning of a read.
 void bc_whitelist::trim_begin(char* str){
-    int nremain = strlen(str)-BC_LENX2/2;
-    memmove(&str[0], &str[BC_LENX2/2], nremain);
+    int nremain = strlen(str)-bc_len;
+    memmove(&str[0], &str[bc_len], nremain);
     str[nremain] = '\0';
 }
 
 // Remove a barcode from the end of a read.
 void bc_whitelist::trim_end(char* str){
-    str[strlen(str)-BC_LENX2/2] = '\0';
+    str[strlen(str)-bc_len] = '\0';
 }
 
 // whitelist 1, beginning of read, forward
@@ -1087,7 +1144,7 @@ bool bc_whitelist::lookup1_br(char* str, unsigned long& ul, bool trim){
 
 // whitelist 1, end of read, forward
 bool bc_whitelist::lookup1_ef(char* str, unsigned long& ul, bool trim){
-    if (lookup(str + strlen(str) - BC_LENX2/2, false, ul)){
+    if (lookup(str + strlen(str) - bc_len, false, ul)){
         if (trim){
             trim_end(str);
         }
@@ -1098,7 +1155,7 @@ bool bc_whitelist::lookup1_ef(char* str, unsigned long& ul, bool trim){
 
 // whitelist 1, end of read, reverse complement
 bool bc_whitelist::lookup1_er(char* str, unsigned long& ul, bool trim){
-    if (lookup(str + strlen(str) - BC_LENX2/2, true, ul)){
+    if (lookup(str + strlen(str) - bc_len, true, ul)){
         if (trim){
             trim_end(str);
         }
@@ -1131,7 +1188,7 @@ bool bc_whitelist::lookup2_br(char* str, unsigned long& ul, bool trim){
 
 // whitelist 2, end of read, forward
 bool bc_whitelist::lookup2_ef(char* str, unsigned long& ul, bool trim){
-    if (lookup2(str + strlen(str) - BC_LENX2/2, false, ul)){
+    if (lookup2(str + strlen(str) - bc_len, false, ul)){
         if (trim){
             trim_end(str);
         }
@@ -1142,7 +1199,7 @@ bool bc_whitelist::lookup2_ef(char* str, unsigned long& ul, bool trim){
 
 // whitelist 2, end of read, reverse complement
 bool bc_whitelist::lookup2_er(char* str, unsigned long& ul, bool trim){
-    if (lookup2(str + strlen(str) - BC_LENX2/2, true, ul)){
+    if (lookup2(str + strlen(str) - bc_len, true, ul)){
         if (trim){
             trim_end(str);
         }

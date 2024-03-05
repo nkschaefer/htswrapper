@@ -41,7 +41,9 @@ class bc_scanner{
         bool has_r3;
         
         // Which file idx are the barcodes in?
-        int file_idx;
+        int file_idx_bc;
+        int file_idx_umi;
+        int umi_start;
 
         bc_whitelist wl;
 
@@ -55,6 +57,8 @@ class bc_scanner{
         bool initialized;
         
         void set_defaults();
+        void close_seqs();
+        void set_seq_pointers();
 
     public:
         
@@ -62,22 +66,38 @@ class bc_scanner{
         char* seq_id;
         int seq_id_len;
 
+        // Read containing barcode information
         char* barcode_read;
         char* barcode_read_qual;
         int barcode_read_len;
         
-        char* read1;
-        char* read1_qual;
-        int read1_len;
-
-        char* read2;
-        char* read2_qual;
-        int read2_len;
-
-        bool has_read1;
-        bool has_read2;
+        // Forward (primary non-barcode) read
+        char* read_f;
+        char* read_f_qual;
+        int read_f_len;
+    
+        // Reverse (secondary non-barcode) read, if it exists
+        char* read_r;
+        char* read_r_qual;
+        int read_r_len;
         
+        // Unique molecular identifier (UMI) sequence, if it exists
+        char* umi;
+        int umi_len;
+
+        bool has_read_f;
+        bool has_read_r;
+        bool has_umi;
+
         unsigned long barcode;
+        
+        // Point it to input FASTQ files 
+        void add_reads(std::string filename);
+        void add_reads(std::string filename1, std::string filename2);
+        void add_reads(std::string filename1, std::string filename2, std::string filename3);
+        
+        // Default constructor
+        bc_scanner();
 
         // Constructors - tell it about FASTQ files
         bc_scanner(std::string filename);
@@ -88,15 +108,31 @@ class bc_scanner{
         ~bc_scanner();
 
         // tell it where to look for barcodes
-        void init(std::string wlfile1, std::string wlfile2,
-            int file_idx, bool at_end, bool rc, bool wl2);
+        void init(std::string wlfile1, 
+            std::string wlfile2,
+            int file_idx_bc, 
+            bool at_end, 
+            bool rc, 
+            bool wl2, 
+            int file_idx_umi = -1, 
+            int umi_start = -1,
+            int umi_len = 0,
+            int bc_len=BC_LENX2/2);
         
         // Pre-sets
+        void init_10x_RNA_v2(std::string wlfile);
+        void init_10x_RNA_v3(std::string wlfile);
         void init_10x_RNA(std::string wlfile);
         void init_10x_ATAC(std::string wlfile);
         void init_10x_multiome_RNA(std::string wlfile, std::string wlfile2);
         void init_10x_multiome_ATAC(std::string wlfile, std::string wlfile2);
+        void init_10x_featureBarcode_v2(std::string wlfile);
+        void init_10x_featureBarcode_v3(std::string wlfile);
         void init_10x_featureBarcode(std::string wlfile);
+        void init_multiseq_v2(std::string wlfile);
+        void init_multiseq_v3(std::string wlfile);
+        void init_multiseq(std::string wlfile); 
+
         // Tell whether or not to remove barcodes.
         void trim_barcodes(bool trim);
 
