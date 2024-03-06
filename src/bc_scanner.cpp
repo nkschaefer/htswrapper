@@ -37,6 +37,7 @@ void bc_scanner::set_defaults(){
     umi_start = -1;
     has_umi = false;
     umi = NULL;
+    initialized = false;
 }
 
 void bc_scanner::add_reads(string seqfile){
@@ -265,7 +266,8 @@ void bc_scanner::init(string whitelistfile,
     this->at_end = at_end;
     this->rc = rc;
     this->use_wl2 = wl2; 
-
+    
+    this->file_idx_umi = file_idx_umi;
     if (file_idx_umi >= 0){
         // Create a buffer to store UMI sequence
         umi = (char*)malloc((umi_len+1)*sizeof(char));

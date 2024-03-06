@@ -385,13 +385,27 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
     fprintf(stderr, "Read %ld barcodes from file\n", cell_barcodes.size());
 }
 
-kmer_lookup::kmer_lookup(){
+void kmer_lookup::init(int k){
     // Determine max # k-mers
+    // NOTE: from cppreference:
+    // https://en.cppreference.com/w/cpp/utility/bitset
+    // the sequence is thought of as having its lowest indexed elements at the 
+    // right, as in the binary representation of integers.
+    
+    // This means bitset[0] is the smallest numeric bit (2^0)
+    // This means that the highest index in the bitset is the largest number
+    // This means that the maximum unsigned long representation equals all bits
+    // up to k*2 turned on -- higher bits are all set to 0
+    
     kmer test;
-    for (int i = 0; i < KX2; ++i){
+    for (int i = 0; i < k*2; ++i){
         test.set(i);
     }
-    unsigned long nk = test.to_ulong();
+    
+    // ulong representation of test is max possible value
+    // need one more bucket than this
+    unsigned long nk = test.to_ulong()+1;
+
     n_kmers = nk;
     table = (kmer_lookup_node**)malloc(nk*sizeof(kmer_lookup_node*));
     table_last = (kmer_lookup_node**)malloc(nk*sizeof(kmer_lookup_node*));
@@ -400,9 +414,46 @@ kmer_lookup::kmer_lookup(){
         table_last[i] = NULL;
     }
     curnode = NULL;
+    initialized = true;
+}
+
+kmer_lookup::kmer_lookup(){
+    initialized = false;
+}
+
+kmer_lookup::kmer_lookup(int k){
+    init(k);
+}
+
+kmer_lookup::kmer_lookup(const kmer_lookup& other){
+    if (other.initialized){
+        n_kmers = other.n_kmers;
+        table = (kmer_lookup_node**)malloc(n_kmers*sizeof(kmer_lookup_node*));
+        table_last = (kmer_lookup_node**)malloc(n_kmers*sizeof(kmer_lookup_node*));
+        for (int i = 0; i < n_kmers; ++i){
+            if (other.table[i] != NULL){
+                kmer_lookup_node* n = other.table[i];
+                while (n != NULL){
+                    this->insert(i, n->barcode);
+                    n = n->next;
+                }
+            }
+            else{
+                table[i] = NULL;
+                table_last[i] = NULL;
+            }
+        }
+        curnode = NULL;
+    }
+    else{
+        initialized = false;
+    }
 }
 
 void kmer_lookup::free_members(kmer_lookup_node* n){
+    if (!initialized){
+        return;
+    }
     if (n->next != NULL){
         free_members(n->next);
         n->next = NULL;
@@ -411,21 +462,26 @@ void kmer_lookup::free_members(kmer_lookup_node* n){
 }
 
 kmer_lookup::~kmer_lookup(){
-    // Free all nodes
-    for (size_t i = 0; i < n_kmers; ++i){
-        if (table[i] != NULL){
-            table_last[i] = NULL;
-            free_members(table[i]);
+    if (initialized){
+        // Free all nodes
+        for (size_t i = 0; i < n_kmers; ++i){
+            if (table[i] != NULL){
+                table_last[i] = NULL;
+                free_members(table[i]);
+            }
         }
+        // Free tables
+        free(table);
+        free(table_last);
     }
-    // Free tables
-    free(table);
-    free(table_last);
 }
 
-void kmer_lookup::insert(kmer& k, unsigned long barcode){
+void kmer_lookup::insert(unsigned long idx, unsigned long barcode){
+    if (!initialized){
+        fprintf(stderr, "ERROR: kmer_lookup not initialized\n");
+        exit(1);
+    }
     kmer_lookup_node* n = new kmer_lookup_node(barcode);
-    unsigned long idx = k.to_ulong();
     if (table[idx] == NULL){
         table[idx] = n;
         table_last[idx] = n;
@@ -437,7 +493,19 @@ void kmer_lookup::insert(kmer& k, unsigned long barcode){
     }
 }
 
+void kmer_lookup::insert(kmer& k, unsigned long barcode){
+    insert(k.to_ulong(), barcode);
+}
+
 bool kmer_lookup::lookup(kmer& k, unsigned long& barcode){
+    return this->lookup(k.to_ulong(), barcode);
+}
+
+bool kmer_lookup::lookup(unsigned long ul, unsigned long& barcode){
+    if (!initialized){
+        fprintf(stderr, "ERROR: kmer_lookup not initialized\n");
+        exit(1);
+    }
     if (curnode != NULL){
         // Assume we're still iterating
         if (curnode->next == NULL){
@@ -454,7 +522,6 @@ bool kmer_lookup::lookup(kmer& k, unsigned long& barcode){
     }
     else{
         // Start a new lookup.
-        unsigned long ul = k.to_ulong();
         if (table[ul] == NULL){
             curnode = NULL;
             return false;
@@ -588,22 +655,19 @@ void bc_whitelist::check_lengths(){
     }
 }
 
-void bc_whitelist::init_aux(int bc_len, int k){
+void bc_whitelist::init_aux(int bc_len, int k, bool has_two){
     // Ensure everything was compiled correctly
     check_lengths();
 
-    // Determine how many spaces we need in k-mer lookup lists
-    kmer mer;
-    mer.reset();
-    for (int i = 0; i < KX2; ++i){
-        mer.set(i);
-    }
-    n_kmer_buckets = mer.to_ulong();
-    
     // Store lengths
     this->bc_len = bc_len;
     this->k = k;
     
+    this->kmer2bc.init(k);
+    if (has_two){
+        this->kmer2bc2.init(k);
+    }
+
     // Default to allow fuzzy matching
     this->exact_only = false;
 
@@ -614,21 +678,21 @@ void bc_whitelist::init_aux(int bc_len, int k){
 }
 
 void bc_whitelist::init(string name, int bc_len, int k){
-    init_aux(bc_len, k);
+    init_aux(bc_len, k, false);
     this->parse_whitelist(name);
     this->multiome = false;
     initialized = true;
 }
 
 void bc_whitelist::init(string name1, string name2, int bc_len, int k){
-    init_aux(bc_len, k);
+    init_aux(bc_len, k, true);
     this->parse_whitelist_pair(name1, name2);
     this->multiome = true;
     initialized = true;
 }
 
 void bc_whitelist::init(vector<string>& bcs, int bc_len, int k){
-    init_aux(bc_len, k);
+    init_aux(bc_len, k, false);
     this->parse_whitelist(bcs);
     this->multiome = false;
     initialized = true;
@@ -814,7 +878,6 @@ bool bc_whitelist::fuzzy_count_barcode(unsigned long barcode,
  * falls below i-k, we can give up altogether.
  */
 unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, bool& success){
-    
     if (this->exact_only){
         success = false;
         return 0;
@@ -1066,6 +1129,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
         return fuzzy_match(str, rc, is_wl2, success);
     }
     return false;
+
 }
 
 /** 

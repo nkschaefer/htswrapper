@@ -75,10 +75,12 @@ struct kmer_lookup_node{
     kmer_lookup_node* next;
     unsigned long barcode;
     kmer_lookup_node(unsigned long ul){ barcode = ul; next = NULL; };
+    kmer_lookup_node(){ barcode = 0; next = NULL; };
 };
 
 class kmer_lookup{
     private:
+        bool initialized;
         size_t n_kmers;
         kmer_lookup_node** table;
         kmer_lookup_node** table_last;
@@ -86,8 +88,15 @@ class kmer_lookup{
             kmer_lookup_node* curnode;
     public:
         kmer_lookup();
+        kmer_lookup(int k);
+        kmer_lookup(const kmer_lookup& other);
+
+        void init(int k=KX2/2);
         ~kmer_lookup();
+        
+        void insert(unsigned long ul, unsigned long barcode);
         void insert(kmer& k, unsigned long barcode);
+        bool lookup(unsigned long ul, unsigned long& barcode);
         bool lookup(kmer& k, unsigned long& barcode);
 };
 
@@ -111,9 +120,6 @@ class bc_whitelist{
         
         // For multiome ATAC: look up the ATAC barcode and get an RNA-seq barcode
         robin_hood::unordered_flat_map<unsigned long, unsigned long> wl2;
-        
-        // For fuzzy matching: how many indices into kmer lookup arrays do we need?
-        int n_kmer_buckets;
         
         // Look up barcode by shorter k-mer for fuzzy matching        
         kmer_lookup kmer2bc;
@@ -146,7 +152,7 @@ class bc_whitelist{
         void trim_begin(char* str);
         void trim_end(char* str);
         
-        void init_aux(int bc_len, int k);
+        void init_aux(int bc_len, int k, bool has_second_wl);
 
     public:
         

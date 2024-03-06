@@ -114,17 +114,76 @@ bool umi_set::match(const umi& u1, const umi& u2){
 }
 
 umi_set::umi_set(int len){
-    this->len = len;
     this->ngrp = 0;
+    this->exact = false;
+    set_len(len);
 }
 
 umi_set::umi_set(){
     this->len = -1;
+    this->exact = false;
     this->ngrp = 0;
+}
+
+umi_set::umi_set(const umi_set& other){
+    if (other.len > 0){
+        len = other.len;
+        kmers = other.kmers;
+        nomissing = other.nomissing;
+        umis = other.umis;
+        umi_groups = other.umi_groups;
+        ngrp = other.ngrp;
+        mask = other.mask;
+        mask_mask = other.mask_mask;
+    }
+    exact = other.exact;
+}
+
+int umi_set::get_k(){
+    if (this->len <= 0){
+        return -1;
+    }
+    // Determine fuzzy matching k value
+    // k must be < (bc_length + 1)/2
+    int k;
+    if (len % 2 == 0){
+        // Even barcode length
+        k = len/2;
+    }
+    else{
+        k = (len-1)/2;
+    }
+    return k;
 }
 
 void umi_set::set_len(int len){
     this->len = len;
+    if (!exact){
+        int k = get_k();
+        kmers.init(k);
+        mask.reset();
+        for (int i = 0; i < k*2; ++i){
+            mask.set(i);
+        }
+        mask_mask.reset();
+        for (int i = 0; i < k; ++i){
+            mask_mask.set(i);
+        }
+    }
+}
+
+void umi_set::print(const umi& u){
+    string umi_str = bc2str(u.bits, len);
+    for (int i = 0; i < len; ++i){
+        if (!u.mask[i]){
+            umi_str[i] = 'N';
+        }
+    }    
+    fprintf(stderr, "%s\n", umi_str.c_str());
+}
+
+void umi_set::exact_matches_only(bool exact){
+    this->exact = exact;
 }
 
 void umi_set::add(const umi& to_add){
@@ -132,31 +191,125 @@ void umi_set::add(const umi& to_add){
         fprintf(stderr, "ERROR: initialize length first\n");
         exit(1);
     }
+
+    unsigned long ul = to_add.bits.to_ulong();
     if (to_add.missing_multiple){
         // Impossible to be within edit dist 1 of another UMI
+        // Count as unique but do not store
+        ++ngrp;
         return;
     }
-    else if (!to_add.missing_sites && nomissing.find(to_add.bits.to_ulong()) != nomissing.end()){
+    else if (!to_add.missing_sites && nomissing.count(ul) > 0 &&
+        nomissing[ul] == to_add.mask.to_ulong()){
         // Has exact match; no need to add
         return;
     }
-    // Look for a match with edit dist <= 1
-    int grp_idx = -1;
-    for (int i = 0; i < this->umis.size(); ++i){
-        if (match(umis[i], to_add)){
-            grp_idx = umi_groups[i];
-            break;
+    
+    bool has_match = false;
+    bool add_new = true;
+    int group_num = -1;
+    
+    if (!exact){
+        // Look for a match with edit dist <= 1
+        vector<int> matches(umis.size(), 0);
+        set<unsigned long> inds_check;
+        
+        int k = get_k();
+
+        for (int start = 0; start <= len-k; ++start){
+            // Test for number of valid (non-N) bases in this k-mer   
+            if ((mask_mask & (to_add.mask >> start)).count() == k){
+                
+                // No skipped bases in this k-mer.
+                // Get bitset representation of current k-mer
+                unsigned long kmer = (mask & (to_add.bits >> 2*start)).to_ulong();
+                
+                // In bc.cpp, kmer_lookup is used to store unsigned long representation of 
+                // cell barcodes. Here, the unsigned longs will (somewhat wastefully)
+                // represent indices into the list of UMIs. 
+                unsigned long list_idx;
+                while(kmers.lookup(kmer, list_idx)){
+                    matches[list_idx]++;
+                    if (matches[list_idx] >= len - 2*k + 1){
+                        // Pass
+                        inds_check.insert(list_idx);
+                    } 
+                } 
+            }
+        }
+        
+        
+        
+        for (set<unsigned long>::iterator i = inds_check.begin(); i != inds_check.end(); ++i){
+            unsigned long idx = *i;
+            // Compare the two.
+            // Greedy: just go with the first match.
+            if (match(umis[idx], to_add)){
+                has_match = true;
+                group_num = umi_groups[idx];
+                if (umis[idx].missing_sites && !to_add.missing_sites){
+                    // Use the new k-mer to fill in the holes in the previous one.
+                    for (int i = 0; i < len; ++i){
+                        if (!umis[idx].mask.test(i) && to_add.mask.test(i)){
+                            umis[idx].bits[2*i] = to_add.bits[2*i];
+                            umis[idx].bits[2*i+1] = to_add.bits[2*i+1];
+                            umis[idx].mask.set(i);
+
+                            // Add missing k-mer lookup stuff
+                            int first_idx = i-k+1;
+                            if (first_idx < 0){
+                                first_idx = 0;
+                            }
+                            int last_idx = i;
+                            if (last_idx > len-k){
+                                last_idx = len-k;
+                            }
+                            for (int start = first_idx; start <= last_idx; ++start){
+                                unsigned long kmer = (mask & (to_add.bits >> 2*start)).to_ulong();
+                                kmers.insert(kmer, idx);
+                            }
+                            break;
+                        }
+                    }
+                    add_new = false;
+                }
+                else if (to_add.missing_sites && !umis[idx].missing_sites){
+                    // The old one is more informative.
+                    add_new = false;
+                }
+                // Stop looking for matches here
+                break;
+            }
         }
     }
-    if (grp_idx == -1){
-        // Need to add a new group.
-        grp_idx = ngrp;
-        ++ngrp;
-    }
-    umis.push_back(to_add);
-    umi_groups.push_back(grp_idx);
-    if (!to_add.missing_sites){
-        this->nomissing.insert(to_add.bits.to_ulong());
+
+    if (add_new){
+        if (group_num == -1){
+            // Need to add a new group.
+            group_num = ngrp;
+            ++ngrp;
+        }
+        unsigned long new_umi_idx = umis.size();
+        umis.push_back(to_add);
+        umi_groups.push_back(group_num);
+        if (exact || !to_add.missing_sites){
+            this->nomissing.emplace(ul, to_add.mask.to_ulong());
+        }
+        
+        if (!exact){
+            int k = get_k();
+            // Add all k-mers to lookup table.
+            for (int start = 0; start <= len-k; ++start){
+                // Test for number of valid (non-N) bases in this k-mer   
+                if ((mask_mask & (to_add.mask >> start)).count() == k){
+                    
+                    // No skipped bases in this k-mer.
+                    // Get bitset representation of current k-mer
+                    unsigned long kmer = (mask & (to_add.bits >> 2*start)).to_ulong();
+                    kmers.insert(kmer, new_umi_idx);
+                }
+            } 
+        }
     }
 }
 

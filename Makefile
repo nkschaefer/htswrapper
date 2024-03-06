@@ -36,6 +36,7 @@ build/gzreader.o: src/gzreader.cpp src/gzreader.h
 clean:
 	rm build/*.o
 	rm lib/*.so
+	rm lib/*.a
 
 install: | $(PREFIX)/lib $(PREFIX)/include/htswrapper
 	cp lib/*.so $(PREFIX)/lib
