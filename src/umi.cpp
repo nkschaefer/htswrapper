@@ -191,7 +191,6 @@ void umi_set::add(const umi& to_add){
         fprintf(stderr, "ERROR: initialize length first\n");
         exit(1);
     }
-
     unsigned long ul = to_add.bits.to_ulong();
     if (to_add.missing_multiple){
         // Impossible to be within edit dist 1 of another UMI
