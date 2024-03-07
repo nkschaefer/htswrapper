@@ -34,5 +34,11 @@ Builds on `bc.cpp` to provide a class that iterates through a set of FASTQ files
 ### gzreader.cpp
 A convenience class that makes it easy to read through a file line by line, whether gzipped or not. Automatically detects whether the file is gzipped and handles buffering.
 
+### seq_fuzzy_match.cpp
+A class that takes a list of reference sequences (i.e. barcodes of some type) and provides a function to match any sequence to one of the references, returning the index of the match and making the edit distance accessible. Can be set to return best match overall or best match within a set edit distance, and can either count Ns as mismatches or as a match to any base. Reports no match in the case of a tie. Uses the [edlib](https://github.com/Martinsos/edlib) library to do fuzzy matching.
+
 ### serialize.cpp
 A class that makes it quick/easy to read and write binary data.
+
+### umi.cpp
+A class that makes it easy to de-duplicate UMIs. Stores bit-packed representations of UMI sequences. Can quickly find exact matches and uses k-mers to find matches with an edit distance of 1 if this fails. Provides a function to count unique UMIs after collapsing.
