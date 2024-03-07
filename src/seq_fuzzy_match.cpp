@@ -3,6 +3,7 @@
 #include <string>
 #include <cstring>
 #include <vector>
+#include <math.h>
 #include "edlib/edlib.h"
 #include "seq_fuzzy_match.h"
 
@@ -21,7 +22,18 @@ seq_fuzzy_match::seq_fuzzy_match(vector<string>& seqs, int edit_dist, bool penal
 
     if (global){
         string padding = "";
-        for (int i = 0; i < 20; ++i){
+        // How long should spacers between seqs be?
+        // Assume these are barcodes (relatively short), and that 
+        // seqs aligning to them will be comparable length.
+        // Use padding equal to half the length of the longest sequence
+        int n_padding = 0;
+        for (int i = 0; i < seqs.size(); ++i){
+            if (seqs[i].length() > n_padding){
+                n_padding = seqs[i].length();
+            }
+        }
+        n_padding = (int)round((double)n_padding/2.0);
+        for (int i = 0; i < n_padding; ++i){
             // Choose a character no bases can match
             padding += "?";
         }
