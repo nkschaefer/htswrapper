@@ -55,7 +55,8 @@ class bc_scanner{
         bool trim_bc;
 
         bool initialized;
-        
+        bool reads_init;
+
         void set_defaults();
         void close_seqs();
         void set_seq_pointers();

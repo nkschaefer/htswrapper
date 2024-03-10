@@ -38,20 +38,19 @@ void bc_scanner::set_defaults(){
     has_umi = false;
     umi = NULL;
     initialized = false;
+    reads_init = false;
 }
 
 void bc_scanner::add_reads(string seqfile){
-    if (!initialized){
-        fprintf(stderr, "ERROR: bc_scanner not initialized; cannot add reads\n");
-        exit(1);
-    }
-    if (file_idx_bc > 0){
-        fprintf(stderr, "ERROR: illegal file index %d with only 1 read\n", file_idx_bc);
-        exit(1);
-    }
-    if (file_idx_umi > 0){
-        fprintf(stderr, "ERROR: illegal UMI file index %d with only 1 read\n", file_idx_umi);
-        exit(1);
+    if (initialized){
+        if (file_idx_bc > 0){
+            fprintf(stderr, "ERROR: illegal file index %d with only 1 read\n", file_idx_bc);
+            exit(1);
+        }
+        if (file_idx_umi > 0){
+            fprintf(stderr, "ERROR: illegal UMI file index %d with only 1 read\n", file_idx_umi);
+            exit(1);
+        }
     }
     close_seqs();
     seq1_fp = gzopen(seqfile.c_str(), "r");
@@ -64,20 +63,18 @@ void bc_scanner::add_reads(string seqfile){
     has_r3 = false;
     kseq2 = NULL;
     kseq3 = NULL;
-    set_seq_pointers();
+    reads_init = true;
 }
 
 void bc_scanner::add_reads(string seq1file, string seq2file){
-    if (!initialized){
-        fprintf(stderr, "ERROR: bc_scanner not initialized; cannot add reads\n");
-        exit(1);
-    }
-    if (file_idx_bc > 1){
-        fprintf(stderr, "ERROR: illegal file index %d with only 2 reads\n", file_idx_bc);
-        exit(1);
-    }
-    if (file_idx_umi > 1){
-        fprintf(stderr, "ERROR: illegal file index %d with only 2 reads\n", file_idx_umi);
+    if (initialized){
+        if (file_idx_bc > 1){
+            fprintf(stderr, "ERROR: illegal file index %d with only 2 reads\n", file_idx_bc);
+            exit(1);
+        }
+        if (file_idx_umi > 1){
+            fprintf(stderr, "ERROR: illegal file index %d with only 2 reads\n", file_idx_umi);
+        }
     }
     close_seqs();
     seq1_fp = gzopen(seq1file.c_str(), "r");
@@ -95,14 +92,10 @@ void bc_scanner::add_reads(string seq1file, string seq2file){
     has_r2 = true;
     has_r3 = false;
     kseq3 = NULL; 
-    set_seq_pointers();
+    reads_init = true;
 }
 
 void bc_scanner::add_reads(string seq1file, string seq2file, string seq3file){
-    if (!initialized){
-        fprintf(stderr, "ERROR: bc_scanner not initialized; cannot add reads\n");
-        exit(1);
-    }
     close_seqs();
     seq1_fp = gzopen(seq1file.c_str(), "r");
     if (!seq1_fp){
@@ -124,24 +117,24 @@ void bc_scanner::add_reads(string seq1file, string seq2file, string seq3file){
     kseq3 = kseq_init(seq3_fp);
     has_r2 = true;
     has_r3 = true;
-    set_seq_pointers();
+    reads_init = true;
 }
 
 bc_scanner::bc_scanner(){
     set_defaults();
 }
 bc_scanner::bc_scanner(string seqfile){
-    add_reads(seqfile);
     set_defaults();
+    add_reads(seqfile);
 }
 bc_scanner::bc_scanner(string seq1file, string seq2file){
-    add_reads(seq1file, seq2file);
     set_defaults();
+    add_reads(seq1file, seq2file);
 }
 
 bc_scanner::bc_scanner(string seq1file, string seq2file, string seq3file){
-    add_reads(seq1file, seq2file, seq3file);
     set_defaults();
+    add_reads(seq1file, seq2file, seq3file);
 }
 
 void bc_scanner::close_seqs(){
@@ -157,6 +150,7 @@ void bc_scanner::close_seqs(){
         kseq_destroy(kseq3);
         kseq3 = NULL;
     }
+    reads_init = false;
 }
 
 bc_scanner::~bc_scanner(){
@@ -229,7 +223,19 @@ void bc_scanner::init(string whitelistfile,
     int umi_start, 
     int umi_len,
     int bc_len){
-    
+    if (bc_len <= 0){
+        fprintf(stderr, "ERROR: invalid barcode len %d\n", bc_len);
+        exit(1);
+    }
+    if (file_idx_umi != -1 && umi_len <= 0){
+        fprintf(stderr, "ERROR: invalid UMI len %d\n", umi_len);
+        exit(1);
+    }
+    if (file_idx_umi != -1 && umi_start < 0){
+        fprintf(stderr, "ERROR: invalid UMI start idx %d\n", umi_start);
+        exit(1);
+    }
+
     // Determine optimal value of k given barcode length.
     // k must be < (bc_length + 1)/2
     // Maximal possible k = best performance (fewer expensive k-mer lookups)
@@ -255,13 +261,30 @@ void bc_scanner::init(string whitelistfile,
         fprintf(stderr, "ERROR: illegal UMI file index %d\n", file_idx_umi);
         exit(1);
     }
+    if (reads_init){
+        if (!has_r2 && file_idx_bc > 0){
+            fprintf(stderr, "ERROR: illegal BC file index with 1 read file\n");
+            exit(1);
+        }
+        else if (!has_r3 && file_idx_bc > 1){
+            fprintf(stderr, "ERROR: illegal BC file index with 2 read files\n");
+            exit(1);
+        }
+        else if (!has_r2 && file_idx_umi > 0){
+            fprintf(stderr, "ERROR: illegal UMI file index with 1 read file\n");
+            exit(1);
+        }
+        else if (!has_r3 && file_idx_umi > 1){
+            fprintf(stderr, "ERROR: illegal UMI file index with 2 read files\n");
+            exit(1);
+        }
+    }
     if (wl2){
         wl.init(whitelistfile, whitelistfile2, bc_len, k);
     }
     else{
         wl.init(whitelistfile, bc_len, k);
     }
-    
     this->file_idx_bc = file_idx_bc;
     this->at_end = at_end;
     this->rc = rc;
@@ -279,7 +302,6 @@ void bc_scanner::init(string whitelistfile,
         this->umi_start = -1;
         this->umi_len = 0;
     }
-
     initialized = true;
 }
 
@@ -348,7 +370,6 @@ void bc_scanner::init_multiseq(string wlfile){
 bool bc_scanner::next(){
     bool has_next = true;
     bool bc_found = false;
-
     while (has_next && !bc_found){
         int progress = kseq_read(kseq1);
         if (progress < 0){

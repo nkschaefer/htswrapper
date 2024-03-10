@@ -79,7 +79,8 @@ class umi_set{
         void set_len(int len);
 
         // Put an additional UMI in the set
-        void add(const umi& umi); 
+        // Return whether or not it matched a pre-existing one.
+        bool add(const umi& umi); 
         
         // Count all unique UMIs 
         int count();

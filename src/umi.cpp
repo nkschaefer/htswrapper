@@ -186,7 +186,10 @@ void umi_set::exact_matches_only(bool exact){
     this->exact = exact;
 }
 
-void umi_set::add(const umi& to_add){
+/**
+ * Returns true if a similar UMI already existed and false otherwise.
+ */
+bool umi_set::add(const umi& to_add){
     if (this->len < 0){
         fprintf(stderr, "ERROR: initialize length first\n");
         exit(1);
@@ -196,12 +199,12 @@ void umi_set::add(const umi& to_add){
         // Impossible to be within edit dist 1 of another UMI
         // Count as unique but do not store
         ++ngrp;
-        return;
+        return false;
     }
     else if (!to_add.missing_sites && nomissing.count(ul) > 0 &&
         nomissing[ul] == to_add.mask.to_ulong()){
         // Has exact match; no need to add
-        return;
+        return true;
     }
     
     bool has_match = false;
@@ -236,8 +239,6 @@ void umi_set::add(const umi& to_add){
                 } 
             }
         }
-        
-        
         
         for (set<unsigned long>::iterator i = inds_check.begin(); i != inds_check.end(); ++i){
             unsigned long idx = *i;
@@ -310,6 +311,7 @@ void umi_set::add(const umi& to_add){
             } 
         }
     }
+    return has_match;
 }
 
 int umi_set::count(){
