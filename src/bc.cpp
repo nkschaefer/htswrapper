@@ -407,8 +407,10 @@ void kmer_lookup::init(int k){
     unsigned long nk = test.to_ulong()+1;
 
     n_kmers = nk;
-    table = (kmer_lookup_node**)malloc(nk*sizeof(kmer_lookup_node*));
-    table_last = (kmer_lookup_node**)malloc(nk*sizeof(kmer_lookup_node*));
+    table = new kmer_lookup_node*[n_kmers];
+    table_last = new kmer_lookup_node*[n_kmers];
+    //table = (kmer_lookup_node**)malloc(nk*sizeof(kmer_lookup_node*));
+    //table_last = (kmer_lookup_node**)malloc(nk*sizeof(kmer_lookup_node*));
     for (int i = 0; i < nk; ++i){
         table[i] = NULL;
         table_last[i] = NULL;
@@ -428,8 +430,10 @@ kmer_lookup::kmer_lookup(int k){
 kmer_lookup::kmer_lookup(const kmer_lookup& other){
     if (other.initialized){
         n_kmers = other.n_kmers;
-        table = (kmer_lookup_node**)malloc(n_kmers*sizeof(kmer_lookup_node*));
-        table_last = (kmer_lookup_node**)malloc(n_kmers*sizeof(kmer_lookup_node*));
+        table = new kmer_lookup_node*[n_kmers];
+        table_last = new kmer_lookup_node*[n_kmers];
+        //table = (kmer_lookup_node**)malloc(n_kmers*sizeof(kmer_lookup_node*));
+        //table_last = (kmer_lookup_node**)malloc(n_kmers*sizeof(kmer_lookup_node*));
         for (int i = 0; i < n_kmers; ++i){
             if (other.table[i] != NULL){
                 kmer_lookup_node* n = other.table[i];
@@ -468,11 +472,14 @@ kmer_lookup::~kmer_lookup(){
             if (table[i] != NULL){
                 table_last[i] = NULL;
                 free_members(table[i]);
+                table[i] = NULL;
             }
         }
         // Free tables
-        free(table);
-        free(table_last);
+        delete[] this->table;
+        delete[] this->table_last;
+        //free(table);
+        //free(table_last);
     }
 }
 
@@ -482,7 +489,7 @@ void kmer_lookup::insert(unsigned long idx, unsigned long barcode){
         exit(1);
     }
     kmer_lookup_node* n = new kmer_lookup_node(barcode);
-    if (table[idx] == NULL){
+    if (table_last[idx] == NULL){
         table[idx] = n;
         table_last[idx] = n;
     }

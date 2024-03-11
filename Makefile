@@ -1,7 +1,7 @@
 SHELL=bash
 COMP=g++
 PREFIX ?=/usr/local
-FLAGS=-std=c++11 --std=gnu++11 -fPIC
+FLAGS=-std=c++11 --std=gnu++11 -fPIC -g
 IFLAGS=-I$(PREFIX)/include
 LFLAGS=-L$(PREFIX)/lib
 BC_LENX2 ?= 32
