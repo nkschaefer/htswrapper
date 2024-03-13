@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <mutex>
 #include "robin_hood/robin_hood.h"
 
 // Represent cell barcodes
@@ -115,28 +116,39 @@ class bc_whitelist{
         // One whitelist or two?
         bool multiome;
         
+        bc cur_bc;
+        kmer cur_kmer;
+
         // For normal whitelists: a list of barcodes
         robin_hood::unordered_flat_set<unsigned long> wl;
         
         // For multiome ATAC: look up the ATAC barcode and get an RNA-seq barcode
         robin_hood::unordered_flat_map<unsigned long, unsigned long> wl2;
-        
+        // Flip the above around (usually not used)
+        robin_hood::unordered_flat_map<unsigned long, unsigned long> wl2_rev;
+
         // Look up barcode by shorter k-mer for fuzzy matching        
         kmer_lookup kmer2bc;
         kmer_lookup kmer2bc2;
+        
+        std::mutex kmer1mutex;
+        std::mutex kmer2mutex;
 
         // Parse a single whitelist
         void parse_whitelist(std::string& filename);
         // Parse two whitelists (multiome)
         void parse_whitelist_pair(std::string& filename1, std::string& filename2);
+        
         // Parse a whitelist already loaded into a string vector
         void parse_whitelist(std::vector<std::string>& bcs);        
+        void parse_whitelist(std::vector<unsigned long>& bcs);
+        void parse_whitelist_pair(std::vector<std::string>& bcs1, std::vector<std::string>& bcs2);
+        void parse_whitelist_pair(std::vector<unsigned long>& bcs1, std::vector<unsigned long>& bcs2);
+
         // Helper function for single whitelist
         void parse_whitelist_line(const char* str);
+        void parse_whitelist_line(unsigned long ul);
 
-        bc cur_bc;
-        kmer cur_kmer;
-        
         bool mutate(const char* str, bool rc, std::vector<unsigned long>& alts);
         bool fuzzy_count_barcode(unsigned long barcode, 
             robin_hood::unordered_node_map<unsigned long, matchinfo>& matches,
@@ -161,15 +173,30 @@ class bc_whitelist{
         void init(std::string filename, int bclen=BC_LENX2/2, int k=KX2/2);
         void init(std::string filename, std::string filename2, int bclen=BC_LENX2/2, int k=KX2/2);
         void init(std::vector<std::string>& bcs, int bclen=BC_LENX2/2, int k=KX2/2);
-
+        void init(std::vector<std::string>& bcs1, std::vector<std::string>& bcs2, int bclen=BC_LENX2/2, 
+            int k=KX2/2);
+        void init(std::vector<unsigned long>& bcs, int bclen=BC_LENX2/2, int k=KX2/2);
+        void init(std::vector<unsigned long>& bcs1, std::vector<unsigned long>& bcs2, int bclen=BC_LENX2/2,
+            int k=KX2/2);
+        
         bc_whitelist(std::string filename, int bclen=BC_LENX2/2, int k=KX2/2);
         bc_whitelist(std::string filename, std::string filename2, int bclen=BC_LENX2/2, int k=KX2/2);
         bc_whitelist(std::vector<std::string>& bcs, int bclen=BC_LENX2/2, int k=KX2/2);
-        
+        bc_whitelist(std::vector<std::string>& bcs1, std::vector<std::string>& bcs2, int bclen=BC_LENX2/2, 
+            int k=KX2/2);
+        bc_whitelist(std::vector<unsigned long>& bcs1, int bclen=BC_LENX2/2, int k=KX2/2);
+        bc_whitelist(std::vector<unsigned long>& bcs1, std::vector<unsigned long>& bcs2, int bclen=BC_LENX2/2,
+            int k=KX2/2);
+
         // Toggle setting that dictates whether or not we allow up to one N or
         // base mismatch per barcode
         void exact_matches_only();
         void allow_mismatch();
+        
+        // Convert a (whitelisted) ATAC-seq barcode to an RNA-seq barcode
+        unsigned long wl2towl1(unsigned long barcode);
+        // Convert a (whitelisted) RNA-seq barcode to an ATAC-seq barcode
+        unsigned long wl1towl2(unsigned long barcode);
 
         // Look up a barcode in the first whitelist. Return success/failure
         // and set the resulting key (on success) to the last parameter 

@@ -554,6 +554,15 @@ void bc_whitelist::parse_whitelist_line(const char* line){
     }
 }
 
+void bc_whitelist::parse_whitelist_line(unsigned long bc_ul){
+    string bc_str = bc2str(bc_ul, bc_len);
+    wl.insert(bc_ul);
+    int start = 0;
+    while(str2kmers(bc_str.c_str(), start, cur_kmer, k, bc_len)){
+        kmer2bc.insert(cur_kmer, bc_ul);
+    }
+}
+
 void bc_whitelist::parse_whitelist(string& name){ 
     fprintf(stderr, "Loading allowed barcode list...\n");
     bc cur_bc;
@@ -568,6 +577,12 @@ void bc_whitelist::parse_whitelist(string& name){
 void bc_whitelist::parse_whitelist(vector<string>& bcs){
     for (int i = 0; i < bcs.size(); ++i){
         parse_whitelist_line(bcs[i].c_str());
+    }
+}
+
+void bc_whitelist::parse_whitelist(vector<unsigned long>& bcs){
+    for (int i = 0; i < bcs.size(); ++i){
+        parse_whitelist_line(bcs[i]);
     }
 }
 
@@ -605,6 +620,7 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
         unsigned long bc_ul = cur_bc.to_ulong();
         unsigned long bc_ul_first = firstwl[bc_idx];
         wl2.emplace(bc_ul, bc_ul_first);
+        wl2_rev.emplace(bc_ul_first, bc_ul);
         int start = 0;
         while(str2kmers(reader2.line, start, cur_kmer, k, bc_len)){
             kmer2bc2.insert(cur_kmer, bc_ul);
@@ -612,6 +628,82 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
         ++bc_idx;
     }
     fprintf(stderr, "done\n");
+}
+
+void bc_whitelist::parse_whitelist_pair(vector<string>& list1, vector<string>& list2){
+    if (list1.size() != list2.size()){
+        fprintf(stderr, "ERROR: different whitelist lengths: %ld vs %ld\n", list1.size(), list2.size());
+        return;
+    }
+    kmer cur_kmer;
+    bc cur_bc1;
+    bc cur_bc2;
+    for (int i = 0; i < list1.size(); ++i){
+        if (!str2bc(list1[i].c_str(), cur_bc1, bc_len)){
+            fprintf(stderr, "ERROR: invalid barcode %s in whitelist1\n", list1[i].c_str());
+            return;
+        }
+        if (!str2bc(list2[i].c_str(), cur_bc2, bc_len)){
+            fprintf(stderr, "ERROR: invalid barcode %s in whitelist2\n", list2[i].c_str());
+            return;
+        }
+        unsigned long ul1 = cur_bc1.to_ulong();
+        unsigned long ul2 = cur_bc2.to_ulong();
+        wl.insert(ul1);
+        wl2.emplace(ul2, ul1);
+        wl2_rev.emplace(ul1, ul2);
+        int start = 0;
+        while(str2kmers(list1[i].c_str(), start, cur_kmer, k, bc_len)){
+            kmer2bc.insert(cur_kmer, ul1);
+        }
+        start = 0;
+        while(str2kmers(list2[i].c_str(), start, cur_kmer, k, bc_len)){
+            kmer2bc2.insert(cur_kmer, ul2);
+        }
+    }
+}
+
+void bc_whitelist::parse_whitelist_pair(vector<unsigned long>& list1, vector<unsigned long>& list2){
+    if (list1.size() != list2.size()){
+        fprintf(stderr, "ERROR: different whitelist lengths: %ld vs %ld\n", list1.size(), list2.size());
+        return;
+    }
+    kmer cur_kmer;
+    for (int i = 0; i < list1.size(); ++i){
+        wl.insert(list1[i]);
+        wl2.emplace(list2[i], list1[i]);
+        wl2_rev.emplace(list1[i], list2[i]);
+        int start = 0;
+        string bc_str = bc2str(list1[i], bc_len);
+        while(str2kmers(bc_str.c_str(), start, cur_kmer, k, bc_len)){
+            kmer2bc.insert(cur_kmer, list1[i]);
+        }
+        bc_str = bc2str(list2[i], bc_len);
+        start = 0;
+        while(str2kmers(bc_str.c_str(), start, cur_kmer, k, bc_len)){
+            kmer2bc2.insert(cur_kmer, list2[i]);
+        }
+    }
+}
+
+unsigned long bc_whitelist::wl2towl1(unsigned long barcode){
+    if (!multiome){
+        return 0;
+    }
+    if (this->wl2.count(barcode) > 0){
+        return this->wl2[barcode];
+    }
+    return 0;
+}
+
+unsigned long bc_whitelist::wl1towl2(unsigned long barcode){
+    if (!multiome){
+        return 0;
+    }
+    if (this->wl2_rev.count(barcode) > 0){
+        return this->wl2_rev[barcode];
+    }
+    return 0;
 }
 
 void bc_whitelist::check_lengths(){
@@ -705,6 +797,27 @@ void bc_whitelist::init(vector<string>& bcs, int bc_len, int k){
     initialized = true;
 }
 
+void bc_whitelist::init(vector<string>& bcs1, vector<string>& bcs2, int bc_len, int k){
+    init_aux(bc_len, k, true);
+    this->parse_whitelist_pair(bcs1, bcs2);
+    this->multiome = true;
+    initialized = true;
+}
+
+void bc_whitelist::init(vector<unsigned long>& bcs, int bc_len, int k){
+    init_aux(bc_len, k, false);
+    this->parse_whitelist(bcs);
+    this->multiome = false;
+    this->initialized = true;
+}
+
+void bc_whitelist::init(vector<unsigned long>& bcs1, vector<unsigned long>& bcs2, int bc_len, int k){
+    init_aux(bc_len, k, true);
+    this->parse_whitelist_pair(bcs1, bcs2);
+    this->multiome = true;
+    this->initialized = true;
+}
+
 /**
  * Constructor for single whitelist (i.e. cellranger RNA)
  */
@@ -724,6 +837,19 @@ bc_whitelist::bc_whitelist(string name1, string name2, int bc_len, int k){
 
 bc_whitelist::bc_whitelist(vector<string>& bcs, int bc_len, int k){
     init(bcs, bc_len, k);
+}
+
+bc_whitelist::bc_whitelist(vector<string>& bcs1, vector<string>& bcs2, int bc_len, int k){
+    init(bcs1, bcs2, bc_len, k);
+}
+
+bc_whitelist::bc_whitelist(vector<unsigned long>& bcs, int bc_len, int k){
+    init(bcs, bc_len, k);
+}
+
+bc_whitelist::bc_whitelist(vector<unsigned long>& bcs1, vector<unsigned long>& bcs2,
+    int bc_len, int k){
+    init(bcs1, bcs2, bc_len, k);
 }
 
 bc_whitelist::bc_whitelist(){
@@ -889,18 +1015,19 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
         success = false;
         return 0;
     }
-
     robin_hood::unordered_node_map<unsigned long, matchinfo> matches;
     int maxmatches = 0;
     unsigned long mm_bc;
 
     unsigned long cur_bc;
+    kmer cur_kmer;
 
     int i = 0;
     if (rc){
         int start = -1;
         while(str2kmers_rc(str, start, cur_kmer, k, bc_len)){
             if (is_wl2){
+                lock_guard<mutex> lock(kmer2mutex);
                 while(kmer2bc2.lookup(cur_kmer, cur_bc)){
                     if (fuzzy_count_barcode(cur_bc, matches, i, maxmatches)){
                         success = false;
@@ -909,6 +1036,7 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
                 }
             }
             else{
+                lock_guard<mutex> lock(kmer1mutex);
                 while(kmer2bc.lookup(cur_kmer, cur_bc)){
                     if (fuzzy_count_barcode(cur_bc, matches, i, maxmatches)){
                         success = false;
@@ -923,6 +1051,7 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
         int start = 0;
         while (str2kmers(str, start, cur_kmer, k, bc_len)){
             if (is_wl2){
+                lock_guard<mutex> lock(kmer2mutex);
                 while(kmer2bc2.lookup(cur_kmer, cur_bc)){
                     if (fuzzy_count_barcode(cur_bc, matches, i, maxmatches)){
                         success = false;
@@ -931,6 +1060,7 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
                 }
             }
             else{
+                lock_guard<mutex> lock(kmer1mutex);
                 while(kmer2bc.lookup(cur_kmer, cur_bc)){
                     if (fuzzy_count_barcode(cur_bc, matches, i, maxmatches)){
                         success = false;
@@ -1063,6 +1193,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
         }
     }
     else{
+        bc cur_bc;
         if (str2bc(str, cur_bc, bc_len)){
             unsigned long ul = cur_bc.to_ulong();
             if (is_wl2){
