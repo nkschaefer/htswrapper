@@ -41,6 +41,10 @@ void bc_scanner::set_defaults(){
     reads_init = false;
 }
 
+void bc_scanner::trim_barcodes(bool trim){
+    this->trim_bc = trim;
+}
+
 void bc_scanner::add_reads(string seqfile){
     if (initialized){
         if (file_idx_bc > 0){
