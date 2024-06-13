@@ -217,6 +217,10 @@ void bc_scanner::set_seq_pointers(){
     }
 }
 
+void bc_scanner::exact_matches_only(){
+    this->wl.exact_matches_only();
+}
+
 void bc_scanner::init(string whitelistfile, 
     string whitelistfile2, 
     int file_idx_bc, 
@@ -227,6 +231,7 @@ void bc_scanner::init(string whitelistfile,
     int umi_start, 
     int umi_len,
     int bc_len){
+    
     if (bc_len <= 0){
         fprintf(stderr, "ERROR: invalid barcode len %d\n", bc_len);
         exit(1);

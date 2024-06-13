@@ -133,6 +133,9 @@ class bc_scanner{
         void init_multiseq_v2(std::string wlfile);
         void init_multiseq_v3(std::string wlfile);
         void init_multiseq(std::string wlfile); 
+        
+        // Set to only check for exact matches
+        void exact_matches_only();
 
         // Tell whether or not to remove barcodes.
         void trim_barcodes(bool trim);
