@@ -6,7 +6,7 @@
 #include <zlib.h>
 #include "gzreader.h"
 
-// Class to read through gzipped files
+// Class to read through gzipped (or not gzipped) files
 
 using namespace std;
 
@@ -97,6 +97,12 @@ bool gzreader::next(){
         // Parse lines.
         for (int i = line_start; i < nread + idx_start; ++i){
             if (buf[i] == '\n'){
+                // Ensure string buffer is big enough to hold the line that is
+                // going to be copied into it
+                if (i-line_start > this->strbufsize){
+                    this->strbufsize = i-line_start+1;
+                    this->line = (char*)realloc(line, this->strbufsize);
+                }
                 strncpy(&line[0], &buf[line_start], i-line_start);
                 line[i-line_start] = '\0';
                 line_start = i + 1;
