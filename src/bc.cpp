@@ -375,7 +375,7 @@ unsigned long bc_ul(char* barcode){
  * as an unsigned long.
  *
  */
-void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
+void parse_barcode_file(const string& filename, set<unsigned long>& cell_barcodes){
    
     gzreader reader(filename);
     while (reader.next()){
@@ -383,6 +383,17 @@ void parse_barcode_file(string& filename, set<unsigned long>& cell_barcodes){
     } 
     
     fprintf(stderr, "Read %ld barcodes from file\n", cell_barcodes.size());
+}
+
+/**
+ * Same as above, but populates a vector instead of a set.
+ */
+void parse_barcode_file(const string& filename, vector<unsigned long>& cell_barcodes){
+   
+    gzreader reader(filename);
+    while (reader.next()){
+        cell_barcodes.push_back(bc_ul(reader.line));
+    } 
 }
 
 void kmer_lookup::init(int k){

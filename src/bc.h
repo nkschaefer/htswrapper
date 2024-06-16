@@ -52,7 +52,8 @@ std::string kmer2str_rc(const kmer& this_kmer);
 
 unsigned long bc_ul(std::string& barcode);
 unsigned long bc_ul(char* barcode);
-void parse_barcode_file(std::string& filename, std::set<unsigned long>& cell_barcodes);
+void parse_barcode_file(const std::string& filename, std::set<unsigned long>& cell_barcodes);
+void parse_barcode_file(const std::string& filename, std::vector<unsigned long>& cell_barcodes);
 
 // Class to represent barcode whitelists
 
