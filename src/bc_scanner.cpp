@@ -194,6 +194,7 @@ void bc_scanner::set_seq_pointers(){
         barcode_read_len = kseq2->seq.l;
         read_f = &kseq1->seq.s[0];
         read_f_qual = &kseq1->qual.s[0];
+        read_f_len = kseq1->seq.l;
         has_read_f = true;
         if (has_r3){
             has_read_r = true;
