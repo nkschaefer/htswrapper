@@ -11,6 +11,7 @@
 #include <sys/time.h>
 #include <zlib.h>
 #include <limits.h>
+#include <regex>
 #include "gzreader.h"
 #include "bc.h"
 
@@ -308,30 +309,19 @@ string kmer2str_rc(const kmer& this_bc){
  *
  */
 unsigned long bc_ul(string& barcode){
-    // Look for any extra stuff (i.e. library IDs)
-    // common convention is to affix these to the beginning or end, with
-    // - or _ as a separator.
-    int sep_pos = -1;
-    // Look backward, since 10X puts them on the end.
-    for (int i = barcode.length()-1; i >= 0; --i){
-        if (barcode[i] == '-' || barcode[i] == '_'){
-            sep_pos = i;
-            break;
-        }
+
+    static const std::regex bc_regex("^(.+(-|_))?([ACGT]+)((-|_).+)?$");
+    smatch matches;
+    if (regex_match(barcode, matches, bc_regex)){
+        bc as_bitset;
+        str2bc(matches[3].str().c_str(), as_bitset);
+        return as_bitset.to_ulong();
     }
-    if (sep_pos != -1){
-        if (barcode.length()-sep_pos < sep_pos){
-            // End of read
-            barcode = barcode.substr(0, sep_pos);
-        }
-        else{
-            // Beginning of read.
-            barcode = barcode.substr(sep_pos+1, barcode.length()-sep_pos-1);
-        }
+    else{
+        fprintf(stderr, "ERROR: barcode %s does not appear to be valid.\n", barcode.c_str());
+        exit(1);
     }
-    bc as_bitset;
-    str2bc(barcode.c_str(), as_bitset);
-    return as_bitset.to_ulong();
+    return 0;
 }
 
 /**
