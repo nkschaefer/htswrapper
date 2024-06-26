@@ -13,14 +13,19 @@ endif
 BC_LENX2 ?= 32
 KX2 ?= 16
 
-all: lib/libhtswrapper.so lib/libhtswrapper.a
+all: hash_bc unhash_bc lib/libhtswrapper.so lib/libhtswrapper.a
 
 lib/libhtswrapper.so: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o
 	$(COMP) -shared $(IFLAGS) $(LFLAGS) -o lib/libhtswrapper.so build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o -lz -lhts
 
 lib/libhtswrapper.a: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o
 	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o
- 
+
+hash_bc: src/bc.h build/bc.o build/gzreader.o
+	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o hash_bc src/hash_bc.cpp -lz build/gzreader.o build/bc.o
+
+unhash_bc: src/bc.h build/bc.o build/gzreader.o
+	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o unhash_bc src/unhash_bc.cpp -lz build/gzreader.o build/bc.o 
 build/bam.o: src/bam.cpp src/bam.h
 	$(COMP) $(IFLAGS) $(FLAGS) -c -o build/bam.o src/bam.cpp
 
