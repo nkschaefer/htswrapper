@@ -4,11 +4,9 @@ PREFIX ?=/usr/local
 FLAGS=-std=c++11 --std=gnu++11 -fPIC -g
 IFLAGS=-I$(PREFIX)/include
 LFLAGS=-L$(PREFIX)/lib
-ifneq (${CONDA_PREFIX}, "")
-	ifeq ($(findstring "cellbouncer", ${CONDA_PREFIX}), "cellbouncer")
-		IFLAGS += -I${CONDA_PREFIX}/include
-		LFLAGS += -L${CONDA_PREFIX}/lib
-	endif
+ifeq ($(findstring cellbouncer, ${CONDA_PREFIX}), cellbouncer)
+	IFLAGS += -I${CONDA_PREFIX}/include
+	LFLAGS += -L${CONDA_PREFIX}/lib
 endif
 BC_LENX2 ?= 32
 KX2 ?= 16
