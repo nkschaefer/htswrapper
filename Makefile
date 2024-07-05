@@ -20,10 +20,11 @@ lib/libhtswrapper.a: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build
 	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o
 
 hash_bc: src/bc.h build/bc.o build/gzreader.o
-	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o hash_bc src/hash_bc.cpp -lz build/gzreader.o build/bc.o
+	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o hash_bc src/hash_bc.cpp build/gzreader.o build/bc.o -lz
 
 unhash_bc: src/bc.h build/bc.o build/gzreader.o
-	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o unhash_bc src/unhash_bc.cpp -lz build/gzreader.o build/bc.o 
+	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o unhash_bc src/unhash_bc.cpp build/gzreader.o build/bc.o -lz 
+
 build/bam.o: src/bam.cpp src/bam.h
 	$(COMP) $(IFLAGS) $(FLAGS) -c -o build/bam.o src/bam.cpp
 
