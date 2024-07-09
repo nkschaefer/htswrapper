@@ -309,8 +309,11 @@ string kmer2str_rc(const kmer& this_bc){
  *
  */
 unsigned long bc_ul(string& barcode){
+    
+    // Catch: a libname appended to the beginning or end could also be ACGT+. We will
+    // require that a barcode be at least 10 bp to match here, for that reason.
 
-    static const std::regex bc_regex("^(.+(-|_))?([ACGT]+)((-|_).+)?$");
+    static const std::regex bc_regex("^(.+(-|_))?([ACGT]{10,})((-|_).+)?$");
     smatch matches;
     if (regex_match(barcode, matches, bc_regex)){
         bc as_bitset;
