@@ -380,31 +380,39 @@ void bc_scanner::init_multiseq(string wlfile){
 bool bc_scanner::next(){
     bool has_next = true;
     bool bc_found = false;
+    
+    bool term1 = false;
+    bool term2 = false;
+    bool term3 = false;
+
     while (has_next && !bc_found){
         int progress = kseq_read(kseq1);
         if (progress < 0){
             has_next = false;
+            term1 = true;
         }
         if (has_r2){
             int prog2 = kseq_read(kseq2);
             if (strcmp(kseq2->name.s, kseq1->name.s) != 0){
-                fprintf(stderr, "ERROR: ID mismatch: %s vs %s\n", kseq1->name.s,
-                    kseq2->name.s);
+                fprintf(stderr, "ERROR: ID mismatch.\n  R1 has read ID: %s\n  R2 has read ID: %s\n", 
+                    kseq1->name.s, kseq2->name.s);
                 exit(1);
             }
             if (prog2 < 0){
                 has_next = false;
+                term2 = true;
             }
         }
         if (has_r3){
             int prog3 = kseq_read(kseq3);
             if (strcmp(kseq3->name.s, kseq1->name.s) != 0){
-                fprintf(stderr, "ERROR: ID mismatch: %s vs %s\n", kseq1->name.s,
-                    kseq3->name.s);
+                fprintf(stderr, "ERROR: ID mismatch.\n  R1/R2 have read ID:  %s\n  R3 has read ID: %s\n", 
+                    kseq1->name.s, kseq3->name.s);
                 exit(1);
             }
             if (prog3 < 0){
                 has_next = false;
+                term3 = true;
             }
         }
         // Check for a barcode.
@@ -482,51 +490,52 @@ bool bc_scanner::next(){
             else{
                 has_umi = false;
             }
-            /*
-            seq_id = kseq1->name.s;
-            seq_id_len = kseq1->name.l;            
-            if (file_idx == 0){
-                barcode_read = kseq1->seq.s;
-                barcode_read_qual = kseq1->qual.s;
-                barcode_read_len = kseq1->seq.l;
-                if (has_r2){
-                    read_f = kseq2->seq.s;
-                    read_f_qual = kseq2->qual.s;
-                    read_f_len = kseq2->seq.l;
+        }
+    }
+    
+    // Check to see if any file(s) ended before the others.
+
+    if (term1 || term2 || term3){
+        if (has_r2){
+            if (has_r3){
+                if (term1 && !term2 && !term3){
+                    fprintf(stderr, "WARNING: reached end of R1 file, but R2 and R3 files \
+still contain reads. Your R1 file is likely truncated or corrupted.\n");
                 }
-                if (has_r3){
-                    read_r = kseq3->seq.s;
-                    read_r_qual = kseq3->qual.s;
-                    read_r_len = kseq3->seq.l;
+                else if (term1 && term2 && !term3){
+                    fprintf(stderr, "WARNING: reached end of R1 and R2 files, but R3 file \
+still contains reads. Your R1 & R2 files may be truncated or corrupted.\n");
                 }
-            }
-            else if (file_idx == 1){
-                barcode_read = kseq2->seq.s;
-                barcode_read_qual = kseq2->qual.s;
-                barcode_read_len = kseq2->seq.l;
-                read_f = kseq1->seq.s;
-                read_f_qual = kseq1->qual.s;
-                read_f_len = kseq1->seq.l;
-                if (has_r3){
-                    read_r = kseq3->seq.s;
-                    read_r_qual = kseq3->qual.s;
-                    read_r_len = kseq3->seq.l;
+                else if (term1 && !term2 && term3){
+                    fprintf(stderr, "WARNING: reached end of R1 and R3 files, but R2 file \
+still contains reads. Your R1 & R3 files may be truncated or corrupted.\n");
+                }
+                else if (!term1 && term2 && !term3){
+                    fprintf(stderr, "WARNING: reached end of R2 file, but R1 and R3 files \
+still contain reads. Your R2 file is likely truncated or corrupted.\n");
+                }
+                else if (!term1 && term2 && term3){
+                    fprintf(stderr, "WARNING: reached end of R2 and R3 files, but R1 file \
+still contains reads. Your R2 and R3 files may be truncated or corrupted.\n");
+                }
+                else if (!term1 && !term2 && term3){
+                    fprintf(stderr, "WARNING: reached end of R3 file, but R1 and R2 files \
+still contain reads. Your R3 file is likely truncated or corrupted.\n");
                 }
             }
             else{
-                barcode_read = kseq3->seq.s;
-                barcode_read_qual = kseq3->qual.s;
-                barcode_read_len = kseq3->seq.l;
-                read_f = kseq1->seq.s;
-                read_f_qual = kseq1->qual.s;
-                read_f_len = kseq1->seq.l;
-                read_r = kseq2->seq.s;
-                read_r_qual = kseq2->qual.s;
-                read_r_len = kseq2->seq.l;
+                if (term1 && !term2){
+                    fprintf(stderr, "WARNING: reached end of R1 file, but R2 file still \
+contains reads. Your R2 file is likely truncated or corrupted.\n");
+                }
+                else if (term2 && !term1){
+                    fprintf(stderr, "WARNING: reached end of R2 file, but R1 file still \
+contains reads. Your R1 file is likely truncated or corrupted.\n");
+                }
             }
-            */
         }
     }
+
     return has_next;
 }
     
