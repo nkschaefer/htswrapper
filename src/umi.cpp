@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 #include <zlib.h>
+#include <mutex>
 #include "bc.h"
 #include "umi.h"
 
@@ -126,6 +127,7 @@ umi_set::umi_set(){
 }
 
 umi_set::umi_set(const umi_set& other){
+    //unique_lock<mutex> lock(this->umi_mutex);
     if (other.len > 0){
         len = other.len;
         kmers = other.kmers;
@@ -157,6 +159,7 @@ int umi_set::get_k(){
 }
 
 void umi_set::set_len(int len){
+    //unique_lock<mutex> lock(this->umi_mutex);
     this->len = len;
     if (!exact){
         int k = get_k();
@@ -183,6 +186,7 @@ void umi_set::print(const umi& u){
 }
 
 void umi_set::exact_matches_only(bool exact){
+    //unique_lock<mutex> lock(this->umi_mutex);
     this->exact = exact;
 }
 

@@ -150,21 +150,25 @@ class bc_whitelist{
         void parse_whitelist_line(const char* str);
         void parse_whitelist_line(unsigned long ul);
 
-        bool mutate(const char* str, bool rc, std::vector<unsigned long>& alts);
+        bool mutate(const char* str, int len, bool rc, std::vector<unsigned long>& alts);
         bool fuzzy_count_barcode(unsigned long barcode, 
             robin_hood::unordered_node_map<unsigned long, matchinfo>& matches,
             int i, int& maxmatches);
         unsigned long fuzzy_match(const char* str, bool rc, bool is_wl2, bool& success);
         
-        unsigned long lookup_aux(const char* str, bool rc, bool is_wl2, bool& success);
+        unsigned long lookup_aux(const char* str, int len, bool rc, bool is_wl2, bool& success, bool& exact_match);
         
         // Make sure variables were set correctly at compile time
         void check_lengths();
         
         // Helper function to trim barcode off beginning/end of string
-        void trim_begin(char* str);
-        void trim_end(char* str);
+        void trim_begin(char* str, int len);
+        void trim_end(char* str, int len);
         
+        // Helper function to replace barcode sequence at beginning/end of string
+        void replace_begin(char* str, bool rc, unsigned long ul);
+        void replace_end(char* str, bool rc, unsigned long ul, int len);
+
         void init_aux(int bc_len, int k, bool has_second_wl);
 
     public:
@@ -201,10 +205,10 @@ class bc_whitelist{
 
         // Look up a barcode in the first whitelist. Return success/failure
         // and set the resulting key (on success) to the last parameter 
-        bool lookup(const char* str, bool rc, unsigned long& bc_ul);
+        bool lookup(const char* str, bool rc, unsigned long& bc_ul, bool& exact_match, int len=-1);
         
         // Version that assumes not reverse complement
-        bool lookup(const char* str, unsigned long& bc_ul);
+        bool lookup(const char* str, unsigned long& bc_ul, bool& exact_match, int len=-1);
 
         // Look up a barcode in the second whitelist. Return success/failure
         // and set the resulting key (on success) to the last parameter.
@@ -212,20 +216,23 @@ class bc_whitelist{
         // to the barcode in the second whitelist. This is designed the way
         // 10X Genomics does it for multiome data (first whitelist = RNA, 
         // second whitelist = ATAC).
-        bool lookup2(const char* str, bool rc, unsigned long& bc_ul);
+        bool lookup2(const char* str, bool rc, unsigned long& bc_ul, bool& exact_match, int len=-1);
         
         // Version that assumes not reverse complement
-        bool lookup2(const char* str, unsigned long& bc_ul);
+        bool lookup2(const char* str, unsigned long& bc_ul, bool& exact_match, int len=-1);
 
-        bool lookup1_bf(char* str, unsigned long& bc_ul, bool trim);
-        bool lookup1_ef(char* str, unsigned long& bc_ul, bool trim);
-        bool lookup1_br(char* str, unsigned long& bc_ul, bool trim);
-        bool lookup1_er(char* str, unsigned long& bc_ul, bool trim);
-        bool lookup2_bf(char* str, unsigned long& bc_ul, bool trim);
-        bool lookup2_ef(char* str, unsigned long& bc_ul, bool trim);
-        bool lookup2_br(char* str, unsigned long& bc_ul, bool trim);
-        bool lookup2_er(char* str, unsigned long& bc_ul, bool trim);
+        bool lookup1_bf(char* str, int len, unsigned long& bc_ul, bool trim = false, bool replace = false);
+        bool lookup1_ef(char* str, int len, unsigned long& bc_ul, bool trim = false, bool replace = false);
+        bool lookup1_br(char* str, int len, unsigned long& bc_ul, bool trim = false, bool replace = false);
+        bool lookup1_er(char* str, int len, unsigned long& bc_ul, bool trim = false, bool replace = false);
+        bool lookup2_bf(char* str, int len, unsigned long& bc_ul, bool trim = false, bool replace = false);
+        bool lookup2_ef(char* str, int len, unsigned long& bc_ul, bool trim = false, bool replace = false);
+        bool lookup2_br(char* str, int len, unsigned long& bc_ul, bool trim = false, bool replace = false);
+        bool lookup2_er(char* str, int len, unsigned long& bc_ul, bool trim = false, bool replace = false);
 
+        // Does this contain a second whitelist?
+        bool two_lists();
+        int len_bc();
 };
 
 

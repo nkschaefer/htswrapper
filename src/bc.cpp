@@ -872,7 +872,7 @@ void bc_whitelist::allow_mismatch(){
  * If a barcode contains N, try mutating it to every possible base.
  * If it contains more than one N, give up.
  */
-bool bc_whitelist::mutate(const char* str, bool rc, vector<unsigned long>& alts){
+bool bc_whitelist::mutate(const char* str, int len, bool rc, vector<unsigned long>& alts){
     if (this->exact_only){
         return true;
     }
@@ -884,7 +884,7 @@ bool bc_whitelist::mutate(const char* str, bool rc, vector<unsigned long>& alts)
 
     if (rc){
         int i2 = 0;
-        for (int i = strlen(str)-bc_len; i < strlen(str); ++i){
+        for (int i = len-bc_len; i < len; ++i){
             strcpy[i2] = str[i];
             if (str[i] == 'N' || str[i] == 'n'){
                 if (npos != -1){
@@ -1160,13 +1160,17 @@ unsigned long bc_whitelist::fuzzy_match(const char* str, bool rc, bool is_wl2, b
 /**
  * Look up a string for matches in a single barcode whitelist.
  */
-unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bool& success){
+unsigned long bc_whitelist::lookup_aux(const char* str, int len, bool rc, bool is_wl2, 
+    bool& success, bool& exact_match){
+    
     if (!initialized){
         fprintf(stderr, "ERROR: whitelist not initialized\n");
         return false;
     }
     bool try_mut = false;
     bool try_kmers = false;
+    
+    exact_match = false;
 
     if (rc){
         if (str2bc_rc(str, cur_bc, bc_len)){ 
@@ -1174,6 +1178,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
             if (is_wl2){
                 if (wl2.count(ul) > 0){
                     success = true;
+                    exact_match = true;
                     return wl2[ul];
                 }
                 else{
@@ -1183,6 +1188,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
             else{
                 if (wl.find(ul) != wl.end()){
                     success = true;
+                    exact_match = true;
                     return ul;
                 }
                 else{
@@ -1203,6 +1209,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
             if (is_wl2){
                 if (wl2.count(ul) > 0){
                     success = true;
+                    exact_match = true;
                     return wl2[ul];
                 }
                 else{
@@ -1212,6 +1219,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
             else{
                 if (wl.find(ul) != wl.end()){
                     success = true;
+                    exact_match = true;
                     return ul;
                 }
                 else{
@@ -1227,7 +1235,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
     }
     if (try_mut){
         vector<unsigned long> alts;
-        if (mutate(str, rc, alts)){
+        if (mutate(str, len, rc, alts)){
             // Accept if exactly one passes.
             int npass = 0;
             int pass_idx = -1;
@@ -1277,37 +1285,49 @@ unsigned long bc_whitelist::lookup_aux(const char* str, bool rc, bool is_wl2, bo
 /** 
  * Look up in first (or only) whitelist, allowing revcomp or not
  */
-bool bc_whitelist::lookup(const char* str, bool rc, unsigned long& ul){
+bool bc_whitelist::lookup(const char* str, bool rc, unsigned long& ul, bool& exact_match, int len){
+    if (len <= 0){
+        len = strlen(str);
+    }
     bool success;
-    ul = lookup_aux(str, rc, false, success);
+    ul = lookup_aux(str, len, rc, false, success, exact_match);
     return success;
 }
 
 /**
  * Look up in first (or only) whitelist, assuming forward orientation
  */
-bool bc_whitelist::lookup(const char* str, unsigned long& ul){
-    return lookup(str, false, ul);
+bool bc_whitelist::lookup(const char* str, unsigned long& ul, bool& exact_match, int len){
+    if (len <= 0){
+        len = strlen(str);
+    }
+    return lookup(str, false, ul, exact_match, len);
 }
 
 /**
  * Look up in second whitelist, allowing revcomp or not
  */
-bool bc_whitelist::lookup2(const char* str, bool rc, unsigned long& ul){
+bool bc_whitelist::lookup2(const char* str, bool rc, unsigned long& ul, bool& exact_match, int len){
     if (!multiome){
         // Can't look up in second whitelist
         return false;
     }
+    if (len <= 0){
+        len = strlen(str);
+    }
     bool success;
-    ul = lookup_aux(str, rc, true, success);
+    ul = lookup_aux(str, len, rc, true, success, exact_match);
     return success;
 }
 
 /**
  * Look up in second whitelist, assuming forward orientation
  */
-bool bc_whitelist::lookup2(const char* str, unsigned long& ul){
-    return lookup2(str, false, ul);
+bool bc_whitelist::lookup2(const char* str, unsigned long& ul, bool& exact_match, int len){
+    if (len <= 0){
+        len = strlen(str);
+    }
+    return lookup2(str, false, ul, exact_match, len);
 }
 
 /**
@@ -1315,22 +1335,50 @@ bool bc_whitelist::lookup2(const char* str, unsigned long& ul){
  */
 
 // Remove a barcode from the beginning of a read.
-void bc_whitelist::trim_begin(char* str){
-    int nremain = strlen(str)-bc_len;
+void bc_whitelist::trim_begin(char* str, int len){
+    int nremain = len-bc_len;
     memmove(&str[0], &str[bc_len], nremain);
     str[nremain] = '\0';
 }
 
 // Remove a barcode from the end of a read.
-void bc_whitelist::trim_end(char* str){
-    str[strlen(str)-bc_len] = '\0';
+void bc_whitelist::trim_end(char* str, int len){
+    str[len-bc_len] = '\0';
+}
+
+// Replace a barcode at the beginning of a read.
+void bc_whitelist::replace_begin(char* str, bool rc, unsigned long ul){
+    string bc_str;
+    if (rc){
+        bc_str = bc2str_rc(ul);
+    } 
+    else{
+        bc_str = bc2str(ul);
+    }
+    strncpy(&str[0], bc_str.c_str(), bc_len);
+}
+
+// Replace a barcode at the end of a read.
+void bc_whitelist::replace_end(char* str, bool rc, unsigned long ul, int len){
+    string bc_str;
+    if (rc){
+        bc_str = bc2str_rc(ul);
+    }
+    else{
+        bc_str = bc2str(ul);
+    }
+    strncpy(&str[len-bc_len], bc_str.c_str(), bc_len);
 }
 
 // whitelist 1, beginning of read, forward
-bool bc_whitelist::lookup1_bf(char* str, unsigned long& ul, bool trim){
-    if (lookup(str, false, ul)){
+bool bc_whitelist::lookup1_bf(char* str, int len, unsigned long& ul, bool trim, bool replace){
+    bool exact_match;
+    if (lookup(str, false, ul, exact_match, len)){
         if (trim){
-            trim_begin(str);
+            trim_begin(str, len);
+        }
+        else if (replace && !exact_match){
+            replace_begin(str, false, ul);
         }
         return true;
     }
@@ -1338,10 +1386,14 @@ bool bc_whitelist::lookup1_bf(char* str, unsigned long& ul, bool trim){
 }
 
 // whitelist 1, beginning of read, reverse complement
-bool bc_whitelist::lookup1_br(char* str, unsigned long& ul, bool trim){
-    if (lookup(str, true, ul)){
+bool bc_whitelist::lookup1_br(char* str, int len, unsigned long& ul, bool trim, bool replace){
+    bool exact_match;
+    if (lookup(str, true, ul, exact_match, len)){
         if (trim){
-            trim_begin(str);
+            trim_begin(str, len);
+        }
+        else if (replace && !exact_match){
+            replace_begin(str, true, ul);
         }
         return true;
     }
@@ -1349,10 +1401,14 @@ bool bc_whitelist::lookup1_br(char* str, unsigned long& ul, bool trim){
 }
 
 // whitelist 1, end of read, forward
-bool bc_whitelist::lookup1_ef(char* str, unsigned long& ul, bool trim){
-    if (lookup(str + strlen(str) - bc_len, false, ul)){
+bool bc_whitelist::lookup1_ef(char* str, int len, unsigned long& ul, bool trim, bool replace){
+    bool exact_match;
+    if (lookup(str + len - bc_len, false, ul, exact_match, len)){
         if (trim){
-            trim_end(str);
+            trim_end(str, len);
+        }
+        else if (replace && !exact_match){
+            replace_end(str, false, ul, len);
         }
         return true;
     }
@@ -1360,10 +1416,14 @@ bool bc_whitelist::lookup1_ef(char* str, unsigned long& ul, bool trim){
 }
 
 // whitelist 1, end of read, reverse complement
-bool bc_whitelist::lookup1_er(char* str, unsigned long& ul, bool trim){
-    if (lookup(str + strlen(str) - bc_len, true, ul)){
+bool bc_whitelist::lookup1_er(char* str, int len, unsigned long& ul, bool trim, bool replace){
+    bool exact_match;
+    if (lookup(str + len - bc_len, true, ul, exact_match, len)){
         if (trim){
-            trim_end(str);
+            trim_end(str, len);
+        }
+        else if (replace && !exact_match){
+            replace_end(str, true, ul, len);
         }
         return true;
     }
@@ -1371,10 +1431,14 @@ bool bc_whitelist::lookup1_er(char* str, unsigned long& ul, bool trim){
 }
 
 // whitelist 2, beginning of read, forward
-bool bc_whitelist::lookup2_bf(char* str, unsigned long& ul, bool trim){
-    if (lookup2(str, false, ul)){
+bool bc_whitelist::lookup2_bf(char* str, int len, unsigned long& ul, bool trim, bool replace){
+    bool exact_match;
+    if (lookup2(str, false, ul, exact_match, len)){
         if (trim){
-            trim_begin(str);
+            trim_begin(str, len);
+        }
+        else if (replace && !exact_match){
+            replace_begin(str, false, ul);
         }
         return true;
     }
@@ -1382,10 +1446,14 @@ bool bc_whitelist::lookup2_bf(char* str, unsigned long& ul, bool trim){
 }
 
 // whitelist 2, beginning of read, reverse complement
-bool bc_whitelist::lookup2_br(char* str, unsigned long& ul, bool trim){
-    if (lookup2(str, true, ul)){
+bool bc_whitelist::lookup2_br(char* str, int len, unsigned long& ul, bool trim, bool replace){
+    bool exact_match = false;
+    if (lookup2(str, true, ul, exact_match, len)){
         if (trim){
-            trim_begin(str);
+            trim_begin(str, len);
+        }
+        else if (replace && !exact_match){
+            replace_begin(str, true, ul);
         }
         return true;
     }
@@ -1393,10 +1461,14 @@ bool bc_whitelist::lookup2_br(char* str, unsigned long& ul, bool trim){
 }
 
 // whitelist 2, end of read, forward
-bool bc_whitelist::lookup2_ef(char* str, unsigned long& ul, bool trim){
-    if (lookup2(str + strlen(str) - bc_len, false, ul)){
+bool bc_whitelist::lookup2_ef(char* str, int len, unsigned long& ul, bool trim, bool replace){
+    bool exact_match = false;
+    if (lookup2(str + len - bc_len, false, ul, exact_match, len)){
         if (trim){
-            trim_end(str);
+            trim_end(str, len);
+        }
+        else if (replace && !exact_match){
+            replace_end(str, false, ul, len);
         }
         return true;
     }
@@ -1404,13 +1476,24 @@ bool bc_whitelist::lookup2_ef(char* str, unsigned long& ul, bool trim){
 }
 
 // whitelist 2, end of read, reverse complement
-bool bc_whitelist::lookup2_er(char* str, unsigned long& ul, bool trim){
-    if (lookup2(str + strlen(str) - bc_len, true, ul)){
+bool bc_whitelist::lookup2_er(char* str, int len, unsigned long& ul, bool trim, bool replace){
+    bool exact_match;
+    if (lookup2(str + len - bc_len, true, ul, exact_match, len)){
         if (trim){
-            trim_end(str);
+            trim_end(str, len);
+        }
+        else if (replace && !exact_match){
+            replace_end(str, true, ul, len);
         }
         return true;
     }
     return false;
 }
 
+bool bc_whitelist::two_lists(){
+    return this->multiome;
+}
+
+int bc_whitelist::len_bc(){
+    return bc_len;
+}

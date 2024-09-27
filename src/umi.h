@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 #include <zlib.h>
+#include <mutex>
 #include "bc.h"
 #include "umi.h"
 #include "robin_hood/robin_hood.h"
@@ -65,8 +66,11 @@ class umi_set{
         
         // Do matches have to be exact to be collapsed? (faster)
         bool exact;
+        
 
     public:
+        
+        std::mutex umi_mutex;
         
         umi_set();
 
