@@ -123,7 +123,6 @@ void bc_scanner::launch_threads(){
         //thread* t = new thread(&bc_scanner::worker, this);
         //threads.push_back(t);
     }
-    fprintf(stderr, "launched %ld\n", threads.size());
     
     threads_init = true;
 }
@@ -165,9 +164,9 @@ void bc_scanner::add_job(char* n, int nl,
 
 void bc_scanner::worker(){
     while(true){
-        if (jobs.size() == 0 && terminate_threads){
-            return;
-        }
+        //if (jobs.size() == 0 && terminate_threads){
+        //    return;
+        //}
         seq_info si;
         {
             unique_lock<mutex> lock(queue_mutex);
@@ -340,7 +339,6 @@ void bc_scanner::close_seqs(){
  * Destructor
  */
 bc_scanner::~bc_scanner(){
-    fprintf(stderr, "destroy\n");
     close_seqs();
     if (umi != NULL){
         free(umi);
@@ -364,11 +362,13 @@ bc_scanner::~bc_scanner(){
         if (read_r != NULL){
             free(read_r);
         }
+        for (int i = 0; i < threads.size(); ++i){
+            threads[i].join();
+        }
         threads.clear();
         jobs.clear();
         output.clear();
     }
-    fprintf(stderr, "destroy done\n");
 }
 
 void bc_scanner::exact_matches_only(){
@@ -928,7 +928,6 @@ void bc_scanner::set_seq_pointers(seq_info si){
 }
 
 void bc_scanner::pop_output_queue(){
-    unique_lock<mutex> lock(output_mutex);
     // This function also frees whatever data was pointed to at these
     // pointers before
     seq_info si = output[0];
@@ -983,7 +982,7 @@ contains reads. Your R1 file is likely truncated or corrupted.\n");
 
 bool bc_scanner::next(){
 
-    if (nthreads > 1 && !threads_init){
+    if (nthreads > 1 && !threads_init && !terminate_threads){
         launch_threads();
     }
 
@@ -998,6 +997,7 @@ bool bc_scanner::next(){
     if (eof && nthreads > 1){
         // This will only be the case when multithreading. Should have already closed the pool.
         
+        unique_lock<mutex> lock(output_mutex);
         if (output.size() > 0){
             pop_output_queue();
             return output.size() > 0;
@@ -1084,10 +1084,13 @@ bool bc_scanner::next(){
                 ++jobcount;
                 add_job(n, nl, s1, l1, q1, s2, l2, q2, s3, l3, q3);
                 
-                if (output.size() > 0){
-                    pop_output_queue();
-                    bc_found = true;             
-                    ++count_returned;
+                { 
+                    unique_lock<mutex> lock(output_mutex);
+                    if (output.size() > 0){
+                        pop_output_queue();
+                        bc_found = true;             
+                        ++count_returned;
+                    }
                 }
 
                 if (!has_next){
@@ -1097,14 +1100,17 @@ bool bc_scanner::next(){
                     // Ask all jobs to finish.
                     close_pool();
                     
-                    if (output.size() > 0){
-                        pop_output_queue();
-                        bc_found = true;
-                        ++count_returned;
-                    }
-                    else{
-                        bc_found = false;
-                        has_next = false;
+                    {
+                        unique_lock<mutex> lock(output_mutex);
+                        if (output.size() > 0){
+                            pop_output_queue();
+                            bc_found = true;
+                            ++count_returned;
+                        }
+                        else{
+                            bc_found = false;
+                            has_next = false;
+                        }
                     }
                     check_uneven_eof(term1, term2, term3);
                 }

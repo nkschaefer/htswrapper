@@ -70,6 +70,39 @@ umi::umi(const umi& other){
     this->missing_multiple = other.missing_multiple;
 }
 
+umi_set_exact::umi_set_exact(){
+    ngrp = 0;
+}
+
+umi_set_exact::~umi_set_exact(){
+    umis_unique.clear();
+}
+
+int umi_set_exact::count(){
+    return ngrp;
+}
+
+/**
+ * Returns true if a similar UMI already existed and false otherwise.
+ */
+bool umi_set_exact::add(const umi& to_add){
+    unsigned long ul = to_add.bits.to_ulong();
+    if (to_add.missing_multiple){
+        // Impossible to be within edit dist 1 of another UMI
+        // Count as unique but do not store
+        ++ngrp;
+        return false;
+    }
+    else if (!to_add.missing_sites && umis_unique.size() > 0 && umis_unique.find(ul) != umis_unique.end()){
+        return true;   
+    }
+    else{
+        umis_unique.insert(ul);
+        ++ngrp;
+        return false;
+    }
+}
+
 /**
  * Returns true if the two UMIs are within edit distance 1 of
  * each other and false otherwise.

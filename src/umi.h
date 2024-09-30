@@ -36,6 +36,21 @@ class umi{
         umi(const umi& other);
 };
 
+// A class to collapse UMIs, allowing only exact matches
+class umi_set_exact{
+    private: 
+        robin_hood::unordered_set<unsigned long> umis_unique;
+        int ngrp;    
+    public:
+        bool add(const umi& umi);
+        int count();
+        std::mutex umi_mutex;
+
+        umi_set_exact();
+        ~umi_set_exact();
+};
+
+// A class to collapse UMIs, allowing approximate matches
 class umi_set{
    
     private:
