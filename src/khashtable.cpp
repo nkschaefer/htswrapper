@@ -21,7 +21,8 @@
 
 using namespace std;
 
-bool fill_chunk(std::bitset<KHASH_CHUNK_SIZE>& this_chunk, const char* seq, int start, int len, bool rc){
+bool fill_chunk(std::bitset<KHASH_CHUNK_SIZE>& this_chunk, 
+    const char* seq, int start, int len, bool rc){
     if (rc){
         int bcbit = 0;
         for (int base_idx = start + len - 1; base_idx >= start; --base_idx){
@@ -128,7 +129,6 @@ void khashkey::init(int k){
    
     last_chunksize = k - (n_chunks-1)*chunksize;
    
-    //mask = ((1UL << chunksize*2) - 1);
     mask = ((1UL << last_chunksize*2) - 1);
     
     this->k = k;
@@ -137,9 +137,6 @@ void khashkey::init(int k){
         std::bitset<KHASH_CHUNK_SIZE> chunk;
         chunks.push_back(chunk);
         chunks_rev.push_back(chunk);
-        //bc this_bc;
-        //chunks.push_back(this_bc);
-        //chunks_rev.push_back(this_bc); 
     }
     need_rebuild = true;
 }
@@ -310,16 +307,6 @@ bool khashkey::advance(char c){
                 if (not_full_rev){
                     chunks_rev[ci_rev] &= mask;
                 }
-                /*
-                if (ci_rev == n_chunks -1 ){
-                    chunks_rev[ci_rev] = (chunks_rev[ci_rev] << 2) & mask;
-                }
-                else{
-                    //chunks_rev[ci_rev] = (chunks_rev[ci_rev] << 2) & mask;
-                }
-                
-                //chunks_rev[ci_rev] <<= 2;
-                */
 
                 if (chunks_rev[ci_rev-1].test((chunksize-1)*2)){
                     chunks_rev[ci_rev].set(0);
@@ -340,8 +327,6 @@ bool khashkey::advance(char c){
                 if (not_full){
                     chunks[ci] &= mask;
                 }
-                //chunks[ci] = (chunks[ci] >> 2) & mask;
-                //chunks[ci] >>= 2;
                 switch(c){
                     case 'A':
                         chunks[ci].reset((last_chunksize-1)*2);
@@ -366,7 +351,6 @@ bool khashkey::advance(char c){
                 }    
             }
             else{
-                //chunks[ci] = (chunks[ci] >> 2) & mask;
                 chunks[ci] >>= 2;
                 if (not_full){
                     chunks[ci] &= mask;

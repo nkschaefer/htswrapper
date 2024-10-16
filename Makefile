@@ -26,9 +26,6 @@ hash_bc: src/bc.h build/bc.o build/gzreader.o
 
 unhash_bc: src/bc.h build/bc.o build/gzreader.o
 	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o unhash_bc src/unhash_bc.cpp build/gzreader.o build/bc.o -lz 
-wl_test: src/wl_test.cpp src/bc.h build/bc.o
-	$(COMP) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -g build/bc.o build/gzreader.o src/wl_test.cpp $(LFLAGS) -o wl_test -lz
-
 khashtable_test: src/khashtable_test.cpp src/khashtable.h build/khashtable.o build/bc.o 
 	$(COMP) $(CXXFLAGS) $(CXXIFLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -g build/khashtable.o build/bc.o build/gzreader.o src/khashtable_test.cpp $(LFLAGS) -o khashtable_test -lz
 

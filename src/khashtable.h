@@ -38,11 +38,6 @@ class khashkey{
         bool rebuild(const char* seq);
         bool advance(const char c);
     public:
-        //std::vector<bitset<KHASH_CHUNK_SIZE> > chunks;
-        //std::vector<bitset<KHASH_CHUNK_SIZE> > chunks_rev;
-        //std::vector<bc> chunks;
-        //std::vector<bc> chunks_rev;
-        
         std::vector<std::bitset<KHASH_CHUNK_SIZE> > chunks;
         std::vector<std::bitset<KHASH_CHUNK_SIZE> > chunks_rev;
 
@@ -57,56 +52,13 @@ class khashkey{
 template<typename datatype> 
 struct khashnode;
 
-struct chunk_hash{
-    std::size_t operator()(unsigned long long key) const{
-      // taken from https://bioinformatics.stackexchange.com/questions/5359/what-is-the-most-compact-data-structure-for-canonical-k-mers-with-the-fastest-lo
-      // more sophisticated hash function to reduce collisions
-      key = (~key + (key << 21)); // key = (key << 21) - key - 1;
-      key = key ^ key >> 24;
-      key = ((key + (key << 3)) + (key << 8)); // key * 265
-      key = key ^ key >> 14;
-      key = ((key + (key << 2)) + (key << 4)); // key * 21
-      key = key ^ key >> 28;
-      key = (key + (key << 31));
-      return key;
-    };
-};
-
-struct chunk_hash2{
-    std::size_t operator()(unsigned long long key) const{
-      return static_cast<std::size_t>(key);
-    };
-};
-
-struct chunk_hash3{
-    std::size_t operator()(unsigned long long x) const{
-        const std::size_t prime = 1099511628211ULL;
-        std::size_t hash = 14695981039346656037ULL;
-        for (int i = 0; i < 8; ++i) {
-            hash ^= (x & 0xFF);
-            hash *= prime;
-            x >>= 8;
-        }
-        return hash;
-    };
-};
-
 template<typename datatype>
-//using knode_map = robin_hood::unordered_flat_map<unsigned long long, khashnode<datatype>*, chunk_hash>;
 using knode_map = robin_hood::unordered_flat_map<unsigned long long, khashnode<datatype>* >;
-//using knode_map = ska::bytell_hash_map<unsigned long long, khashnode<datatype>* >;
-//using knode_map = absl::flat_hash_map<unsigned long long, khashnode<datatype>* >;
-//using knode_map = fph::DynamicFphMap<unsigned long long, khashnode<datatype>* >;
-//using knode_map = robin_hood::unordered_flat_map<unsigned long long, khashnode<datatype>*, chunk_hash3 >;
-//using knode_map = emhash7::HashMap<unsigned long long, khashnode<datatype>*, chunk_hash >;
-//using knode_map = emhash8::HashMap<unsigned long long, khashnode<datatype>* >;
 
 template<typename datatype> struct khashnode{
     datatype data;
     bool end;
     knode_map<datatype>* map;
-    //robin_hood::unordered_flat_map<unsigned long long, khashnode*>* map;
-    //khashnode<datatype>** map;
 
     khashnode(bool e=false){
         this->end = e;
@@ -115,8 +67,6 @@ template<typename datatype> struct khashnode{
         }
         else{
             this->map = new knode_map<datatype>;
-            //this->map = new robin_hood::unordered_flat_map<unsigned long long, khashnode*>;
-            //this->map = (khashnode<datatype>**) calloc((((1UL << KHASH_CHUNK_SIZE*2) - 1)+1), sizeof(khashnode<datatype>*));     
         }
     };
     
@@ -125,17 +75,8 @@ template<typename datatype> struct khashnode{
             // Don't do anything weird
         }
         else if (this->map != NULL){
-            /*
-            for (int i = 0; i < ((1UL << KHASH_CHUNK_SIZE*2) - 1); ++i){
-                if (this->map[i] != NULL){
-                    delete this->map[i];
-                    this->map[i] = NULL;
-                }
-            }
-            free(this->map);
-            */
-            //for (typename robin_hood::unordered_flat_map<unsigned long long, khashnode<datatype>* >::iterator m = 
-            for (typename knode_map<datatype>::iterator m = this->map->begin(); m != this->map->end(); ++m){        
+            for (typename knode_map<datatype>::iterator m = this->map->begin(); 
+                m != this->map->end(); ++m){        
                 delete m->second;
             }
             delete this->map;
@@ -159,21 +100,13 @@ class khashtable{
         int k;
         int last_chunksize;
         unsigned long array_size;
-        //khashnode<datatype>** elts;
-        //robin_hood::unordered_flat_map<unsigned long long, khashnode<datatype>* > elts; 
         knode_map<datatype> elts;
     public:
         
         khashtable(int k){
             
-            //chunk_size = KHASH_CHUNK_SIZE/2;
-            //chunk_size = KHASH_CHUNK_SIZE;
             chunk_size = KHASH_CHUNK_SIZE/2;
             n_chunks = (int)ceil((double)k/(double)chunk_size);
-            
-            //array_size = ((1UL << chunk_size*2) - 1) + 1;
-            //this->elts = (khashnode<datatype>**)calloc(array_size, sizeof(khashnode<datatype>*));
-            //array_size = 1<<(KHASH_CHUNK_SIZE*2);
             
             // Error check
             if (n_chunks >= k){
@@ -188,23 +121,11 @@ class khashtable{
             }
             last_chunksize = k - (n_chunks-1)*chunk_size;
             this->k = k;
-            
-            //this->elts.reserve(1000000000);
         };
 
         ~khashtable(){
-            /*
-            for (int i = 0; i < array_size; ++i){
-                if (elts[i] != NULL){
-                    delete elts[i];
-                    elts[i] = NULL;
-                }
-            }
-            free(elts);
-            */
-            
-            //for (typename robin_hood::unordered_flat_map<unsigned long long, khashnode<datatype>* >::iterator x = this->elts.begin();
-            for (typename knode_map<datatype>::iterator x = this->elts.begin(); x != this->elts.end(); ++x){
+            for (typename knode_map<datatype>::iterator x = this->elts.begin(); 
+                x != this->elts.end(); ++x){
                 delete x->second;
             }
             this->elts.clear();   
@@ -212,16 +133,6 @@ class khashtable{
         };
         
         void clear(){
-            /*
-            for (int i = 0; i < array_size; ++i){
-                if (elts[i] != NULL){
-                    delete elts[i];
-                    elts[i] = NULL;
-                }
-            }
-            */
-            
-            //for (typename robin_hood::unordered_flat_map<unsigned long long, khashnode<datatype>* >::iterator x = this->elts.begin();
             for (typename knode_map<datatype>::iterator x = this->elts.begin(); 
                 x != this->elts.end(); ++x){
                 delete x->second;
@@ -294,70 +205,6 @@ class khashtable{
                 
                 bool success = fill_chunk(this_chunk, seq, start, len, rc);
                 
-                /*
-                if (rc){
-                    if (!str2bc_rc(seq + start, this_bc, len)){
-                        success = false;
-                    }
-                }
-                else{
-                    if (!str2bc(seq + start, this_bc, len)){
-                        success = false;
-                    }
-                }
-                */
-
-                /*
-                std::bitset<KHASH_CHUNK_SIZE> this_chunk;
-                for (int i = start; i < len; ++i){
-                    if (rc){
-                        switch(seq[k - i + 1]){
-                            case 'A':
-                                this_chunk.set(i*2);
-                                this_chunk.set(i*2+1);
-                                break;
-                            case 'C':
-                                this_chunk.reset(i*2);
-                                this_chunk.set(i*2+1);
-                                break;
-                            case 'G':
-                                this_chunk.set(i*2);
-                                this_chunk.reset(i*2+1);
-                                break;
-                            case 'T':
-                                this_chunk.reset(i*2);
-                                this_chunk.reset(i*2+1);
-                                break;
-                            default:
-                                success = false;
-                                break;
-                        }
-                    }
-                    else{
-                        switch(seq[i]){
-                            case 'A':
-                                this_chunk.reset(i*2);
-                                this_chunk.reset(i*2+1);
-                                break;
-                            case 'C':
-                                this_chunk.set(i*2);
-                                this_chunk.reset(i*2+1);
-                                break;
-                            case 'G':
-                                this_chunk.reset(i*2);
-                                this_chunk.set(i*2+1);
-                                break;
-                            case 'T':
-                                this_chunk.set(i*2);
-                                this_chunk.set(i*2+1);
-                                break;
-                            default:
-                                success = false;
-                                break;
-                        }
-                    }
-                }
-                */
                 if (success){
                     unsigned long long ul = this_chunk.to_ullong();
                     keys_path.push_back(ul);
@@ -401,15 +248,6 @@ class khashtable{
                     }
                 }
                 else{
-                    /*
-                    if (prev->map[ul] != NULL){
-                        n = prev->map[ul];
-                    }
-                    else{
-                        n = new khashnode<datatype>;
-                        prev->map[ul] = n;
-                    }
-                    */
                     
                     if (prev->map->count(ul) > 0){
                         n = (*prev->map)[ul];
@@ -429,15 +267,6 @@ class khashtable{
             khashnode<datatype>* n_f = NULL;
             khashnode<datatype>* n_r = NULL;
             
-           /*
-            if (elts[key.chunks[0].to_ulong()] != NULL){
-                n_f = elts[key.chunks[0].to_ulong()];
-            }
-            if (elts[key.chunks_rev[0].to_ulong()] != NULL){
-                n_r = elts[key.chunks_rev[0].to_ulong()];
-            }
-            */
-            
             if (elts.count(key.chunks[0].to_ullong()) > 0){
                 n_f = elts[key.chunks[0].to_ullong()];
             }
@@ -450,14 +279,6 @@ class khashtable{
             }
             for (int i = 1; i < key.chunks.size(); ++i){
                 if (n_f != NULL){
-                    /*
-                    if (n_f->map[key.chunks[i].to_ulong()] != NULL){
-                        n_f = n_f->map[key.chunks[i].to_ulong()];
-                    }
-                    else{
-                        n_f = NULL;
-                    }
-                    */
                     
                     if (n_f->map->count(key.chunks[i].to_ullong()) > 0){
                         n_f = (*n_f->map)[key.chunks[i].to_ullong()];
@@ -468,14 +289,6 @@ class khashtable{
                     
                 }
                 if (n_r != NULL){
-                    /*
-                    if (n_r->map[key.chunks_rev[i].to_ulong()] != NULL){
-                        n_r = n_r->map[key.chunks_rev[i].to_ulong()];
-                    }
-                    else{
-                        n_r = NULL;
-                    }
-                    */
                     
                     if (n_r->map->count(key.chunks_rev[i].to_ullong()) > 0){
                         n_r = (*n_r->map)[key.chunks_rev[i].to_ullong()];
