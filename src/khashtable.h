@@ -18,7 +18,6 @@
 #include <deque>
 #include <cstdlib>
 #include <bitset>
-#include "emhash/hash_table8.hpp"
 #include "robin_hood/robin_hood.h"
 #define KHASH_CHUNK_SIZE (64)
 
