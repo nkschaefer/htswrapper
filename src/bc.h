@@ -127,6 +127,10 @@ class bc_whitelist{
         robin_hood::unordered_flat_map<unsigned long, unsigned long> wl2;
         // Flip the above around (usually not used)
         robin_hood::unordered_flat_map<unsigned long, unsigned long> wl2_rev;
+        
+        std::vector<std::bitset<BC_LENX2> > fuzzy_masks;
+        std::vector<robin_hood::unordered_flat_map<unsigned long, std::vector<unsigned long> > > fuzzy_matches;
+        std::vector<robin_hood::unordered_flat_map<unsigned long, std::vector<unsigned long> > > fuzzy_matches2;
 
         // Look up barcode by shorter k-mer for fuzzy matching        
         kmer_lookup kmer2bc;
@@ -174,6 +178,7 @@ class bc_whitelist{
     public:
         
         bc_whitelist();
+        ~bc_whitelist();
 
         void init(std::string filename, int bclen=BC_LENX2/2, int k=KX2/2);
         void init(std::string filename, std::string filename2, int bclen=BC_LENX2/2, int k=KX2/2);

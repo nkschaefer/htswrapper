@@ -1,7 +1,9 @@
 SHELL=bash
 COMP=g++
+CCOMP=gcc
 PREFIX ?=/usr/local
-FLAGS=-std=c++11 --std=gnu++11 -fPIC -g
+CFLAGS = -fPIC
+FLAGS=-std=c++11 --std=gnu++11 -fPIC -O3 -g
 IFLAGS=-I$(PREFIX)/include
 LFLAGS=-L$(PREFIX)/lib
 ifeq ($(findstring cellbouncer, ${CONDA_PREFIX}), cellbouncer)
@@ -13,17 +15,25 @@ KX2 ?= 16
 
 all: hash_bc unhash_bc lib/libhtswrapper.so lib/libhtswrapper.a
 
-lib/libhtswrapper.so: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o
-	$(COMP) -shared $(IFLAGS) $(LFLAGS) -o lib/libhtswrapper.so build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o -lz -lhts
+lib/libhtswrapper.so: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o
+	$(COMP) -shared $(IFLAGS) $(LFLAGS) -o lib/libhtswrapper.so build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o -lz -lhts
 
-lib/libhtswrapper.a: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o
-	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o
+lib/libhtswrapper.a: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o
+	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o
 
 hash_bc: src/bc.h build/bc.o build/gzreader.o
 	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o hash_bc src/hash_bc.cpp build/gzreader.o build/bc.o -lz
 
 unhash_bc: src/bc.h build/bc.o build/gzreader.o
 	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o unhash_bc src/unhash_bc.cpp build/gzreader.o build/bc.o -lz 
+wl_test: src/wl_test.cpp src/bc.h build/bc.o
+	$(COMP) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -g build/bc.o build/gzreader.o src/wl_test.cpp $(LFLAGS) -o wl_test -lz
+
+khashtable_test: src/khashtable_test.cpp src/khashtable.h build/khashtable.o build/bc.o 
+	$(COMP) $(CXXFLAGS) $(CXXIFLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -g build/khashtable.o build/bc.o build/gzreader.o src/khashtable_test.cpp $(LFLAGS) -o khashtable_test -lz
+
+kmsuftree_test: src/kmsuftree_test.cpp src/kmsuftree.h build/kmsuftree.o
+	$(COMP) $(CXXFLAGS) $(CXXIFLAGS) build/kmsuftree.o src/kmsuftree_test.cpp $(LFLAGS) $(DEPS) -o kmsuftree_test -lz
 
 build/bam.o: src/bam.cpp src/bam.h
 	$(COMP) $(IFLAGS) $(FLAGS) -c -o build/bam.o src/bam.cpp
@@ -49,6 +59,12 @@ build/serialize.o: src/serialize.cpp src/serialize.h
 build/gzreader.o: src/gzreader.cpp src/gzreader.h
 	$(COMP) $(IFLAGS) $(FLAGS) -c -o build/gzreader.o src/gzreader.cpp
 
+build/khashtable.o: src/khashtable.cpp src/khashtable.h $(DEPS)
+	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -g src/khashtable.cpp -c -o build/khashtable.o
+
+build/kmsuftree.o: src/kmsuftree.c src/kmsuftree.h
+	$(CCOMP) $(CFLAGS) src/kmsuftree.c -c -o build/kmsuftree.o
+
 clean:
 	rm build/*.o
 	rm lib/*.so
@@ -62,6 +78,8 @@ install: | $(PREFIX)/lib $(PREFIX)/include/htswrapper
 	cp src/bc_scanner.h $(PREFIX)/include/htswrapper
 	cp src/serialize.h $(PREFIX)/include/htswrapper
 	cp src/gzreader.h $(PREFIX)/include/htswrapper
+	cp src/khashtable.h $(PREFIX)/include/htswrapper
+	cp src/kmsuftree.h $(PREFIX)/include/htswrapper
 	cp src/umi.h $(PREFIX)/include/htswrapper
 	cp src/seq_fuzzy_match.h $(PREFIX)/include/htswrapper
 	cp src/robin_hood/robin_hood.h $(PREFIX)/include/htswrapper/robin_hood

@@ -545,6 +545,20 @@ bool kmer_lookup::lookup(unsigned long ul, unsigned long& barcode){
     }
 }
 
+bc_whitelist::~bc_whitelist(){
+    wl.clear();
+    wl2.clear();
+    wl2_rev.clear(); 
+    for (int i = 0; i < fuzzy_matches.size(); ++i){
+        fuzzy_matches[i].clear();
+    }
+    fuzzy_matches.clear();
+    for (int i = 0; i < fuzzy_matches2.size(); ++i){
+        fuzzy_matches2[i].clear();
+    }
+    fuzzy_matches2.clear();
+}
+
 void bc_whitelist::parse_whitelist_line(const char* line){
     if (!str2bc(line, cur_bc, bc_len)){
         fprintf(stderr, "ERROR: invalid barcode %s in allowed barcode list\n", line);
@@ -552,19 +566,49 @@ void bc_whitelist::parse_whitelist_line(const char* line){
     }
     unsigned long bc_ul = cur_bc.to_ulong();
     wl.insert(bc_ul);
+    
+    if (!exact_only){ 
+        for (int i = 0; i < bc_len; ++i){
+            unsigned long ul2 = (fuzzy_masks[i] & cur_bc).to_ulong();
+            if (fuzzy_matches[i].count(ul2) == 0){
+                vector<unsigned long> v;
+                fuzzy_matches[i].emplace(ul2, v);
+            }
+            fuzzy_matches[i][ul2].push_back(bc_ul);
+        } 
+    }
+
+    /*
+    
     int start = 0;
-    while(str2kmers(line, start, cur_kmer, k, bc_len)){
+       while(str2kmers(line, start, cur_kmer, k, bc_len)){
         kmer2bc.insert(cur_kmer, bc_ul);
     }
+    */
 }
 
 void bc_whitelist::parse_whitelist_line(unsigned long bc_ul){
-    string bc_str = bc2str(bc_ul, bc_len);
     wl.insert(bc_ul);
+   
+    if (!exact_only){ 
+        bc cur_bc = bc_ul; 
+        for (int i = 0; i < bc_len; ++i){
+            unsigned long ul2 = (fuzzy_masks[i] & cur_bc).to_ulong();
+            if (fuzzy_matches[i].count(ul2) == 0){
+                vector<unsigned long> v;
+                fuzzy_matches[i].emplace(ul2, v);
+            }
+            fuzzy_matches[i][ul2].push_back(bc_ul);
+        } 
+    }
+
+    /*
+    
     int start = 0;
     while(str2kmers(bc_str.c_str(), start, cur_kmer, k, bc_len)){
         kmer2bc.insert(cur_kmer, bc_ul);
     }
+    */
 }
 
 void bc_whitelist::parse_whitelist(string& name){ 
@@ -609,10 +653,23 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
         wl.insert(bc_ul);
         // We'll need to look this up by index later.
         firstwl.push_back(bc_ul);
+        
+        if (!exact_only){ 
+            for (int i = 0; i < bc_len; ++i){
+                unsigned long ul2 = (fuzzy_masks[i] & cur_bc).to_ulong();
+                if (fuzzy_matches[i].count(ul2) == 0){
+                    vector<unsigned long> v;
+                    fuzzy_matches[i].emplace(ul2, v);
+                }
+                fuzzy_matches[i][ul2].push_back(bc_ul);
+            }
+        }
+        /*
         int start = 0;
         while(str2kmers(reader.line, start, cur_kmer, k, bc_len)){
             kmer2bc.insert(cur_kmer, bc_ul);
         }
+        */
     } 
     gzreader reader2(name2);
     int bc_idx = 0;
@@ -625,10 +682,23 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
         unsigned long bc_ul_first = firstwl[bc_idx];
         wl2.emplace(bc_ul, bc_ul_first);
         wl2_rev.emplace(bc_ul_first, bc_ul);
+       
+        if (!exact_only){ 
+            for (int i = 0; i < bc_len; ++i){
+                unsigned long ul2 = (fuzzy_masks[i] & cur_bc).to_ulong();
+                if (fuzzy_matches2[i].count(ul2) == 0){
+                    vector<unsigned long> v;
+                    fuzzy_matches2[i].emplace(ul2, v);
+                }
+                fuzzy_matches2[i][ul2].push_back(bc_ul);
+            }
+        }
+        /*
         int start = 0;
         while(str2kmers(reader2.line, start, cur_kmer, k, bc_len)){
             kmer2bc2.insert(cur_kmer, bc_ul);
         }
+        */
         ++bc_idx;
     }
     fprintf(stderr, "done\n");
@@ -771,8 +841,16 @@ void bc_whitelist::init_aux(int bc_len, int k, bool has_two){
         this->kmer2bc2.init(k);
     }
 
-    // Default to allow fuzzy matching
-    this->exact_only = false;
+    //this->exact_only = false;
+     
+    for (int miss_char = 0; miss_char < bc_len; ++miss_char){
+        bc mask = ((1UL << bc_len*2) - 1);
+        mask.reset(miss_char*2);
+        mask.reset(miss_char*2+1);
+        fuzzy_masks.push_back(mask);
+        robin_hood::unordered_map<unsigned long, vector<unsigned long> > m;
+        fuzzy_matches.push_back(m);
+    }
 
     // Uncomment if using std::unordered_set
     //wl.max_load_factor(0.8);
@@ -857,6 +935,8 @@ bc_whitelist::bc_whitelist(vector<unsigned long>& bcs1, vector<unsigned long>& b
 }
 
 bc_whitelist::bc_whitelist(){
+    // Default to allow fuzzy matching
+    this->exact_only = false;
     initialized = false;
 }
 
@@ -1171,6 +1251,7 @@ unsigned long bc_whitelist::lookup_aux(const char* str, int len, bool rc, bool i
     bool try_kmers = false;
     
     exact_match = false;
+    success = false;
 
     if (rc){
         if (str2bc_rc(str, cur_bc, bc_len)){ 
@@ -1233,7 +1314,8 @@ unsigned long bc_whitelist::lookup_aux(const char* str, int len, bool rc, bool i
             try_mut = true;
         }
     }
-    if (try_mut){
+
+    if (!exact_only && try_mut){
         vector<unsigned long> alts;
         if (mutate(str, len, rc, alts)){
             // Accept if exactly one passes.
@@ -1275,10 +1357,29 @@ unsigned long bc_whitelist::lookup_aux(const char* str, int len, bool rc, bool i
             }
         }
     }
-    else if (try_kmers){
-        return fuzzy_match(str, rc, is_wl2, success);
+    else if (!exact_only && try_kmers){
+        for (int i = 0; i < fuzzy_masks.size(); ++i){
+            unsigned long test = (fuzzy_masks[i] & cur_bc).to_ulong();
+            if (is_wl2){
+                if (fuzzy_matches2[i].count(test) > 0){
+                    success = true;
+                    exact_match = false;
+                    // To do: check for multiple? would slow things down
+                    return wl2[fuzzy_matches2[i][test][0]];
+                }
+            }
+            else{
+                if (fuzzy_matches[i].count(test) > 0){
+                    success = true;
+                    exact_match = false;
+                    // To do: check for multiple? would slow things down
+                    return fuzzy_matches[i][test][0];
+                }
+            }
+        }
+        //return fuzzy_match(str, rc, is_wl2, success);
     }
-    return false;
+    return 0;
 
 }
 
