@@ -125,12 +125,15 @@ void print_chunk(std::bitset<KHASH_CHUNK_SIZE>& chunk, bool rc){
 
 void khashkey::init(int k){
     chunksize = KHASH_CHUNK_SIZE/2;
-    n_chunks = (int)ceil((double)k/(double)chunksize);
-   
-    last_chunksize = k - (n_chunks-1)*chunksize;
-   
-    mask = ((1UL << last_chunksize*2) - 1);
     
+    n_chunks = (int)ceil((double)k/(double)chunksize);
+    last_chunksize = k - (n_chunks-1)*chunksize;
+
+    mask = ((1UL << last_chunksize*2) - 1);
+    if (last_chunksize == chunksize){
+        mask.set();
+    } 
+
     this->k = k;
     this->n_pos = -1;
     for (int i = 0; i < n_chunks; ++i){
@@ -259,7 +262,7 @@ bool khashkey::advance(char c){
     // C = 10
     // G = 01
     // T = 11
-    
+   
     if (c == 'N' || c == 'n'){
         // Assume char c is at the current right-most end of seq
         n_pos = k-1;
