@@ -4,7 +4,7 @@ Collection of handy things for code dealing with high throughput sequencing data
 ## Details/installation
 
 ### Dependencies
-Requires [HTSLib](https://github.com/samtools/htslib) and [zlib](https://www.zlib.net/). Also uses [robin_hood](https://github.com/martinus/robin-hood-hashing) hashing, which is included in this repository.
+Requires [HTSLib](https://github.com/samtools/htslib) >= 1.10.2 and [zlib](https://www.zlib.net/). Also uses [robin_hood](https://github.com/martinus/robin-hood-hashing) hashing, which is included in this repository.
 
 ### Barcode length
 
