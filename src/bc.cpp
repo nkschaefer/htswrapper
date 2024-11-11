@@ -653,7 +653,6 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
         wl.insert(bc_ul);
         // We'll need to look this up by index later.
         firstwl.push_back(bc_ul);
-        
         if (!exact_only){ 
             for (int i = 0; i < bc_len; ++i){
                 unsigned long ul2 = (fuzzy_masks[i] & cur_bc).to_ulong();
@@ -682,7 +681,6 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
         unsigned long bc_ul_first = firstwl[bc_idx];
         wl2.emplace(bc_ul, bc_ul_first);
         wl2_rev.emplace(bc_ul_first, bc_ul);
-       
         if (!exact_only){ 
             for (int i = 0; i < bc_len; ++i){
                 unsigned long ul2 = (fuzzy_masks[i] & cur_bc).to_ulong();
@@ -850,6 +848,7 @@ void bc_whitelist::init_aux(int bc_len, int k, bool has_two){
         fuzzy_masks.push_back(mask);
         robin_hood::unordered_map<unsigned long, vector<unsigned long> > m;
         fuzzy_matches.push_back(m);
+        fuzzy_matches2.push_back(m);
     }
 
     // Uncomment if using std::unordered_set

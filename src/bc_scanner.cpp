@@ -981,7 +981,6 @@ contains reads. Your R1 file is likely truncated or corrupted.\n");
 }
 
 bool bc_scanner::next(){
-
     if (nthreads > 1 && !threads_init && !terminate_threads){
         launch_threads();
     }
@@ -996,7 +995,6 @@ bool bc_scanner::next(){
 
     if (eof && nthreads > 1){
         // This will only be the case when multithreading. Should have already closed the pool.
-        
         unique_lock<mutex> lock(output_mutex);
         if (output.size() > 0){
             pop_output_queue();
@@ -1008,7 +1006,6 @@ bool bc_scanner::next(){
     }
     else{
         while (has_next && !bc_found){
-            
             // Read the next set of sequences from input files.
 
             int progress = kseq_read(kseq1);
