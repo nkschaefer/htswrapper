@@ -509,11 +509,14 @@ void bc_scanner::init_10x_RNA_v2(string wlfile){
     init(wlfile, "", 0, false, false, false, 0, 16, 10);
 }
 void bc_scanner::init_10x_RNA_v2(bc_whitelist& w){
+    /*
     if (w.two_lists()){
         fprintf(stderr, "ERROR: two allowed barcode lists detected, but requires 1.\n");
         exit(1);
     }
+    */
     init(w, 0, false, false, 0, 16, 10); 
+    this->use_wl2 = false;
 }
 
 void bc_scanner::init_10x_RNA_v3(string wlfile){
@@ -521,11 +524,14 @@ void bc_scanner::init_10x_RNA_v3(string wlfile){
 }
 
 void bc_scanner::init_10x_RNA_v3(bc_whitelist& w){
+    /*
     if (w.two_lists()){
         fprintf(stderr, "ERROR: two allowed barcode lists detected, but requires 1.\n");
         exit(1);
     }
+    */
     init(w, 0, false, false, 0, 16, 12);
+    this->use_wl2 = false;
 }
 
 // Assumes V3
@@ -534,11 +540,14 @@ void bc_scanner::init_10x_RNA(string wlfile){
 }
 
 void bc_scanner::init_10x_RNA(bc_whitelist& w){
+    /*
     if (w.two_lists()){
         fprintf(stderr, "ERROR: two allowed barcode lists detected, but requires 1.\n");
         exit(1);
     }
+    */
     init(w, 0, false, false, 0, 16, 12);
+    this->use_wl2 = false;
 }
 
 // Assumes V3
@@ -556,11 +565,14 @@ void bc_scanner::init_10x_featureBarcode_v2(string wlfile){
 }
 
 void bc_scanner::init_10x_featureBarcode_v2(bc_whitelist& w){
+    /*
     if (w.two_lists()){
         fprintf(stderr, "ERROR: two allowed barcode lists detected, but requires 1.\n");
         exit(1);
     }
+    */
     init(w, 0, false, false, 0, 16, 10);
+    this->use_wl2 = false;
 }
 
 void bc_scanner::init_10x_featureBarcode_v3(string wlfile){
@@ -568,11 +580,14 @@ void bc_scanner::init_10x_featureBarcode_v3(string wlfile){
 }
 
 void bc_scanner::init_10x_featureBarcode_v3(bc_whitelist& w){
+    /*
     if (w.two_lists()){
         fprintf(stderr, "ERROR: two allowed barcode lists detected, but requires 1.\n");
         exit(1);
     }
+    */
     init(w, 0, false, false, 0, 16, 12);
+    this->use_wl2 = false;
 }
 
 // Assumes V3
@@ -581,11 +596,14 @@ void bc_scanner::init_10x_featureBarcode(string wlfile){
 }
 
 void bc_scanner::init_10x_featureBarcode(bc_whitelist& w){
+    /*
     if (w.two_lists()){
         fprintf(stderr, "ERROR: two allowed barcode lists detected, but requires 1.\n");
         exit(1);
     }
+    */
     init(w, 0, false, false, 0, 16, 12);
+    this->use_wl2 = false;
 }
 
 void bc_scanner::init_10x_ATAC(string wlfile){
@@ -593,11 +611,14 @@ void bc_scanner::init_10x_ATAC(string wlfile){
 }
 
 void bc_scanner::init_10x_ATAC(bc_whitelist& w){
+    /*
     if (w.two_lists()){
         fprintf(stderr, "ERROR: two allowed barcode lists detected, but requires 1.\n");
         exit(1);
     }
+    */
     init(w, 1, true, true, -1, -1, 0);
+    this->use_wl2 = false;
 }
 
 void bc_scanner::init_10x_multiome_ATAC(string wlfile, string wlfile2){
