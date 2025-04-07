@@ -21,10 +21,10 @@ lib/libhtswrapper.so: build/bam.o build/bc.o build/bc_scanner.o build/umi.o buil
 lib/libhtswrapper.a: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o
 	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o
 
-hash_bc: src/bc.h build/bc.o build/gzreader.o
+hash_bc: src/bc.h src/hash_bc.cpp build/bc.o build/gzreader.o
 	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o hash_bc src/hash_bc.cpp build/gzreader.o build/bc.o -lz
 
-unhash_bc: src/bc.h build/bc.o build/gzreader.o
+unhash_bc: src/bc.h src/unhash_bc.cpp build/bc.o build/gzreader.o
 	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o unhash_bc src/unhash_bc.cpp build/gzreader.o build/bc.o -lz 
 khashtable_test: src/khashtable_test.cpp src/khashtable.h build/khashtable.o build/bc.o 
 	$(COMP) $(CXXFLAGS) $(CXXIFLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -g build/khashtable.o build/bc.o build/gzreader.o src/khashtable_test.cpp $(LFLAGS) -o khashtable_test -lz
