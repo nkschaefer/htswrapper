@@ -15,11 +15,11 @@ KX2 ?= 16
 
 all: hash_bc unhash_bc lib/libhtswrapper.so lib/libhtswrapper.a
 
-lib/libhtswrapper.so: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o
-	$(COMP) -shared $(IFLAGS) $(LFLAGS) -o lib/libhtswrapper.so build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o -lz -lhts
+lib/libhtswrapper.so: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o build/mex.o
+	$(COMP) -shared $(IFLAGS) $(LFLAGS) -o lib/libhtswrapper.so build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o build/mex.o -lz -lhts
 
-lib/libhtswrapper.a: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o
-	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o
+lib/libhtswrapper.a: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o build/mex.o
+	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/mex.o
 
 hash_bc: src/bc.h src/hash_bc.cpp build/bc.o build/gzreader.o
 	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o hash_bc src/hash_bc.cpp build/gzreader.o build/bc.o -lz
@@ -62,6 +62,9 @@ build/khashtable.o: src/khashtable.cpp src/khashtable.h $(DEPS)
 build/kmsuftree.o: src/kmsuftree.c src/kmsuftree.h
 	$(CCOMP) $(CFLAGS) src/kmsuftree.c -c -o build/kmsuftree.o
 
+build/mex.o: src/mex.cpp src/mex.h
+	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -c -o build/mex.o src/mex.cpp
+
 clean:
 	rm build/*.o
 	rm lib/*.so
@@ -79,11 +82,12 @@ install: | $(PREFIX)/lib $(PREFIX)/include/htswrapper
 	cp src/kmsuftree.h $(PREFIX)/include/htswrapper
 	cp src/umi.h $(PREFIX)/include/htswrapper
 	cp src/seq_fuzzy_match.h $(PREFIX)/include/htswrapper
+	cp src/mex.h $(PREFIX)/include/htswrapper
 	cp src/robin_hood/robin_hood.h $(PREFIX)/include/htswrapper/robin_hood
 	cp src/robin_hood/LICENSE $(PREFIX)/include/htswrapper/robin_hood
 	cp src/edlib/LICENSE $(PREFIX)/include/htswrapper/edlib
 	cp src/edlib/edlib.h $(PREFIX)/include/htswrapper/edlib
-
+	
 $(PREFIX)/lib:
 	mkdir -p $(PREFIX)/lib
 

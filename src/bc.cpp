@@ -1597,3 +1597,26 @@ bool bc_whitelist::two_lists(){
 int bc_whitelist::len_bc(){
     return bc_len;
 }
+
+/**
+ * Figures out how to modify the text of a barcode string before printing, based on user
+ * options.
+ */
+void mod_bc_libname(string& bc_str, const string& libname, bool cellranger, bool seurat, bool underscore){
+    if (libname != ""){
+        if (cellranger){
+            bc_str += "-1";
+        }
+        if (seurat){
+            bc_str = libname + "_" + bc_str;
+        }
+        else{
+            if (underscore){
+                bc_str += "_" + libname;
+            }
+            else{
+                bc_str += "-" + libname;
+            }
+        }
+    }
+}
