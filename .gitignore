@@ -1,7 +1,4 @@
-*
-!Makefile
-!LICENSE
-!README.md
-!build/
-!lib/
-!src/
+hash_bc
+unhash_bc
+build/*
+lib/*

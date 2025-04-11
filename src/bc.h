@@ -240,5 +240,10 @@ class bc_whitelist{
         int len_bc();
 };
 
+// Modifies a string representation of a cell barcode to include unique
+// library information before printing.
+void mod_bc_libname(std::string& bc, const std::string& libname, bool cellranger,
+   bool seurat, bool underscore);
+
 
 #endif
