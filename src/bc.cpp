@@ -1283,7 +1283,6 @@ unsigned long bc_whitelist::lookup_aux(const char* str, int len, bool rc, bool i
         }
     }
     else{
-        bc cur_bc;
         if (str2bc(str, cur_bc, bc_len)){
             unsigned long ul = cur_bc.to_ulong();
             if (is_wl2){
