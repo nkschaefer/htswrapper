@@ -94,7 +94,17 @@ bool parse_mex(const string& barcodesfile,
         }
         exit(1);
     }
-    
+    else if (featuretype == "" && unique_featuretype.size() > 0){
+        fprintf(stderr, "ERROR: MEX input contains multiple feature types, but no feature \
+type was specified.\n");
+        fprintf(stderr, "Allowed feature types:\n");
+        for (set<string>::iterator ut = unique_featuretype.begin(); ut != unique_featuretype.end();
+            ++ut){
+            fprintf(stderr, "%s\n", ut->c_str());
+        }
+        exit(1);
+    }
+
     set<int> bciuniq;
 
     bool barcodes_first = false;

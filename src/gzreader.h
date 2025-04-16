@@ -7,6 +7,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <zlib.h>
 
 class gzreader{
@@ -22,11 +23,19 @@ class gzreader{
         int nread;
         int line_start;
         bool init_read_empty;
+        bool split;
+        char token;
+        std::string field;
+        void split_fields();
     public:
         gzreader(std::string filename);
         ~gzreader();
         bool next();
         char* line;
+        std::vector<std::string> fields;
+        void delimited();
+        void delimited(bool d);
+        void delimited(char t);
 };
 
 #endif

@@ -3,7 +3,9 @@
 #include <utility>
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <zlib.h>
+#include <vector>
 #include "gzreader.h"
 
 // Class to read through gzipped (or not gzipped) files
@@ -19,7 +21,9 @@ gzreader::gzreader(string fn){
     this->strbufsize = 1024;
     this->buf = (char*)malloc((bufsize)*sizeof(char));    
     this->line = (char*)malloc((strbufsize)*sizeof(char));
-    
+    this->split = false;
+    this->token = '\t';
+
     // Check if file is gzipped.
     FILE* ftest = fopen(fn.c_str(), "r");
     if (ftest == NULL){
@@ -107,6 +111,7 @@ bool gzreader::next(){
                 line[i-line_start] = '\0';
                 line_start = i + 1;
                 //return !(eof && line_start >= nread);
+                split_fields();
                 return true;
             }
         }
@@ -115,6 +120,7 @@ bool gzreader::next(){
             strncpy(&line[0], &buf[line_start], nread+idx_start-line_start);
             line[nread+idx_start-line_start] = '\0';
             line_start = nread;
+            split_fields();
             return true;
         }
 
@@ -150,5 +156,28 @@ bool gzreader::next(){
        
     }
     return false;
+}
+
+void gzreader::delimited(){
+    this->split = true;
+}
+
+void gzreader::delimited(bool delim){
+    this->split = delim;
+}
+
+void gzreader::delimited(char tok){
+    this->split = true;
+    this->token = tok;
+}
+
+void gzreader::split_fields(){
+    if (split){
+        fields.clear();
+        istringstream splitter(line);
+        while (getline(splitter, field, token)){
+            fields.push_back(field);
+        } 
+    }
 }
 
