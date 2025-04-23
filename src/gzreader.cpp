@@ -92,7 +92,7 @@ bool gzreader::next(){
     if (init_read_empty){
         return false;
     }
-    if (eof && line_start >= nread){
+    if (eof && line_start >= nread + idx_start){
         return false;
     }
 
