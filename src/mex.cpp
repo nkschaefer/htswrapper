@@ -94,7 +94,7 @@ bool parse_mex(const string& barcodesfile,
         }
         exit(1);
     }
-    else if (featuretype == "" && unique_featuretype.size() > 0){
+    else if (featuretype == "" && unique_featuretype.size() > 1){
         fprintf(stderr, "ERROR: MEX input contains multiple feature types, but no feature \
 type was specified.\n");
         fprintf(stderr, "Allowed feature types:\n");
