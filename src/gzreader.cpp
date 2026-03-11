@@ -23,6 +23,7 @@ gzreader::gzreader(string fn){
     this->line = (char*)malloc((strbufsize)*sizeof(char));
     this->split = false;
     this->token = '\t';
+    this->has_hdr = false;
 
     // Check if file is gzipped.
     FILE* ftest = fopen(fn.c_str(), "r");
@@ -103,16 +104,23 @@ bool gzreader::next(){
             if (buf[i] == '\n'){
                 // Ensure string buffer is big enough to hold the line that is
                 // going to be copied into it
-                if (i-line_start > this->strbufsize){
+                if (i-line_start+1 > this->strbufsize){
                     this->strbufsize = i-line_start+1;
-                    this->line = (char*)realloc(line, this->strbufsize);
+                    this->line = (char*)realloc(line, this->strbufsize * sizeof(char));
                 }
                 strncpy(&line[0], &buf[line_start], i-line_start);
                 line[i-line_start] = '\0';
                 line_start = i + 1;
                 //return !(eof && line_start >= nread);
                 split_fields();
-                return true;
+                if (split && has_hdr && hdr_map.size() == 0){
+                    for (int x = 0; x < fields.size(); ++x){
+                        hdr_map.insert(make_pair(fields[x], x));
+                    }
+                }
+                else{
+                    return true;
+                }
             }
         }
         if (eof && line_start < nread + idx_start){
@@ -121,7 +129,14 @@ bool gzreader::next(){
             line[nread+idx_start-line_start] = '\0';
             line_start = nread;
             split_fields();
-            return true;
+            if (split && has_hdr && hdr_map.size() == 0){
+                for (int x = 0; x < fields.size(); ++x){
+                    hdr_map.insert(make_pair(fields[x], x));
+                }
+            }
+            else{
+                return true;
+            }
         }
 
         if (line_start < bufsize){
@@ -171,13 +186,26 @@ void gzreader::delimited(char tok){
     this->token = tok;
 }
 
+void gzreader::header(){
+    this->has_hdr = true;
+}
+
+std::string* gzreader::hdr_lookup(std::string s){
+    if (this->hdr_map.count(s) > 0){
+        return &fields[hdr_map.at(s)];
+    }
+    else{
+        return NULL;
+    }
+
+}
 void gzreader::split_fields(){
     if (split){
         fields.clear();
         istringstream splitter(line);
         while (getline(splitter, field, token)){
             fields.push_back(field);
-        } 
+        }
     }
 }
 

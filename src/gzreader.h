@@ -6,6 +6,7 @@
 #include <bitset>
 #include <string>
 #include <iostream>
+#include <map>
 #include <fstream>
 #include <vector>
 #include <zlib.h>
@@ -27,6 +28,9 @@ class gzreader{
         char token;
         std::string field;
         void split_fields();
+        bool has_hdr;
+        std::map<std::string, int> hdr_map;
+
     public:
         gzreader(std::string filename);
         ~gzreader();
@@ -36,6 +40,8 @@ class gzreader{
         void delimited();
         void delimited(bool d);
         void delimited(char t);
+        void header();
+        std::string* hdr_lookup(std::string s);
 };
 
 #endif
