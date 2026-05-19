@@ -49,6 +49,8 @@ void bam_reader::set_defaults(){
     this->cb_raw = false;
     this->prevtid = -1;
     this->genes = false;
+    this->intron_tag = false;
+    this->intron = false;
 
     // Variables for region retrieval with index
     this->idx = NULL;
@@ -333,25 +335,62 @@ void bam_reader::fill_data(){
     
     // Load all desired barcode tags. 
     if (this->genes){
+        this->gene_ids.clear();
+        this->gene_names.clear();
         uint8_t* gi_bin = bam_aux_get(this->reader, "GX");
+        bool has = false;
         if (gi_bin != NULL){
+            has = true;
             char* gi = bam_aux2Z(gi_bin);
             string gi_str = gi;
             string gi_bit;
             stringstream splitter(gi_str);
             while (getline(splitter, gi_bit, ';')){
-                this->gene_ids.push_back(gi_bit);
+                // STARsolo puts in - for missing
+                if (gi_bit != "-"){
+                    this->gene_ids.push_back(gi_bit);
+                }
             }
         }
         uint8_t* gn_bin = bam_aux_get(this->reader, "GN");
         if (gn_bin != NULL){
+            has = true;
             char* gn = bam_aux2Z(gn_bin);
             string gn_str = gn;
             string gn_bit;
             stringstream splitter(gn_str);
             while (getline(splitter, gn_bit, ';')){
-                this->gene_names.push_back(gn_bit);
+                // STARsolo puts in - for missing
+                if (gn_bit != "-"){
+                    this->gene_names.push_back(gn_bit);
+                }
             } 
+        }
+        if (has){
+            // Check for CellRanger-format RE tag (intronic vs exonic)
+            uint8_t* re_bin = bam_aux_get(this->reader, "RE");
+            if (re_bin != NULL){
+                this->intron_tag = true;
+                char re = bam_aux2A(re_bin);
+                if (re == 'E'){
+                    this->intron = false;
+                }
+                else if (re == 'N'){
+                    this->intron = true;
+                }
+                else{
+                    // Intergenic or unrecognized string.
+                    this->intron = false;
+                }
+            }
+            else{
+                this->intron_tag = false;
+                this->intron = false;
+            }
+        }
+        else{
+            this->intron_tag = false;
+            this->intron = false;
         }
     } 
 

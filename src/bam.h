@@ -19,6 +19,7 @@ class bam_reader{
         int32_t get_query_start();
         int32_t get_query_end();
         bool genes; // Should we look for 10x GX and GN tags to tell what gene we're in? 
+        
         hts_itr_t* itr;
         hts_idx_t* idx;
         bool idx_init;
@@ -75,6 +76,9 @@ class bam_reader{
         long int isize;
         bool has_bc_tag;
         
+        bool intron_tag; // If looking for genes, did we see a 10X-format RE tag?
+        bool intron; // If looking for genes, is RE tag present & set to N?
+    
     // Constructor/destructor
     bam_reader();
     bam_reader(std::string&);

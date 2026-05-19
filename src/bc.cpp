@@ -369,12 +369,11 @@ unsigned long bc_ul(char* barcode){
  *
  */
 void parse_barcode_file(const string& filename, set<unsigned long>& cell_barcodes){
-   
     gzreader reader(filename);
     while (reader.next()){
-        cell_barcodes.insert(bc_ul(reader.line));
+        unsigned long ul = bc_ul(reader.line);
+        cell_barcodes.insert(ul);
     } 
-    
     fprintf(stderr, "Read %ld barcodes from file\n", cell_barcodes.size());
 }
 
