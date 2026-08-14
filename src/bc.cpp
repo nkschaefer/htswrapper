@@ -670,6 +670,7 @@ void bc_whitelist::parse_whitelist_pair(string& name1, string& name2){
         }
         */
     } 
+
     gzreader reader2(name2);
     int bc_idx = 0;
     while(reader2.next()){
