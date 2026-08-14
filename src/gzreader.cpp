@@ -98,7 +98,6 @@ bool gzreader::next(){
     }
 
     while(true){
-        
         // Parse lines.
         for (int i = line_start; i < nread + idx_start; ++i){
             if (buf[i] == '\n'){
@@ -128,6 +127,7 @@ bool gzreader::next(){
             strncpy(&line[0], &buf[line_start], nread+idx_start-line_start);
             line[nread+idx_start-line_start] = '\0';
             line_start = nread;
+            idx_start = 0;
             split_fields();
             if (split && has_hdr && hdr_map.size() == 0){
                 for (int x = 0; x < fields.size(); ++x){
@@ -138,7 +138,6 @@ bool gzreader::next(){
                 return true;
             }
         }
-
         if (line_start < bufsize){
             // Need to copy what remains in buffer to beginning.
             memmove(&buf[0], &buf[line_start], bufsize-line_start);
@@ -168,7 +167,6 @@ bool gzreader::next(){
             // Needed to read and can't read anything else.
             return false;
         }
-       
     }
     return false;
 }
