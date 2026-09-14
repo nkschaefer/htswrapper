@@ -6,6 +6,8 @@ Collection of handy things for code dealing with high throughput sequencing data
 ### Dependencies
 Requires [HTSLib](https://github.com/samtools/htslib) >= 1.10.2 and [zlib](https://www.zlib.net/). Also uses [robin_hood](https://github.com/martinus/robin-hood-hashing) hashing, which is included in this repository.
 
+For hdf5 file reading support, requires libhdf5. If this is not present, the relevant programs will not be compiled.
+
 ### Barcode length
 
 Because barcodes are represented as bitsets, their length (and the bitset width) has to be set at compile time. This is done through two variables present in the Makefile: `BC_LENX2`, which is two times the barcode length, and `KX2`, which is two times the k-mer length for fuzzy barcode matching.
