@@ -3,28 +3,51 @@ COMP=g++
 CCOMP=gcc
 PREFIX ?=/usr/local
 CFLAGS = -fPIC
-FLAGS=-std=c++11 --std=gnu++11 -fPIC -O3 -g
+FLAGS=-std=c++14 --std=gnu++14 -fPIC -O3 -g
 IFLAGS=-I$(PREFIX)/include
 LFLAGS=-L$(PREFIX)/lib
-ifeq ($(findstring cellbouncer, ${CONDA_PREFIX}), cellbouncer)
+
+# Stuff to compile
+OBJS = build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o build/mex.o
+
+# Check for hdf5 library (if missing, don't compile relevant code)
+ifdef CONDA_PREFIX
+	HDF5_PKG_CONFIG := PKG_CONFIG_PATH="$(CONDA_PREFIX)/lib/pkgconfig:$(PKG_CONFIG_PATH)" pkg-config
+else
+	HDF5_PKG_CONFIG := pkg-config
+endif
+HDF5_FOUND := $(shell \
+    $(HDF5_PKG_CONFIG) --exists hdf5 && echo 1 || echo 0)
+LIBFLAGS = -lz -lhts
+ifeq ($(HDF5_FOUND),1)
+	LIBFLAGS += -lhdf5
+    OBJS += build/h5_reader.o build/anndata.o build/loom.o
+	HDF5_CFLAGS := $(shell $(HDF5_PKG_CONFIG) --cflags hdf5)
+	HDF5_LIBS   := $(shell $(HDF5_PKG_CONFIG) --libs hdf5)
+endif
+
+# Let current conda env (if active and non-base) provide libraries & headers
+ifeq ($(filter-out base,$(CONDA_DEFAULT_ENV)),)
+    # Either unset/empty, or exactly "base" → NOT a usable non-base env
+    CONDA_ACTIVE_NONBASE :=
+else
+    CONDA_ACTIVE_NONBASE := 1
+endif
+ifdef CONDA_ACTIVE_NONBASE
     IFLAGS += -I${CONDA_PREFIX}/include
     LFLAGS += -L${CONDA_PREFIX}/lib
-else
-    ifeq ($(findstring fusebox, ${CONDA_PREFIX}), fusebox)
-        IFLAGS += -I${CONDA_PREFIX}/include
-        LFLAGS += -L${CONDA_PREFIX}/lib
-    endif
 endif
+
 BC_LENX2 ?= 32
 KX2 ?= 16
 
 all: hash_bc unhash_bc lib/libhtswrapper.so lib/libhtswrapper.a
 
-lib/libhtswrapper.so: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o build/mex.o
-	$(COMP) -shared $(IFLAGS) $(LFLAGS) -o lib/libhtswrapper.so build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o build/mex.o -lz -lhts
+lib/libhtswrapper.so: $(OBJS)
+	$(COMP) -shared $(IFLAGS) $(LFLAGS) $(HDF5_LIBS) -o lib/libhtswrapper.so $(OBJS) $(LIBFLAGS)
 
-lib/libhtswrapper.a: build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/kmsuftree.o build/mex.o
-	ar rcs lib/libhtswrapper.a build/bam.o build/bc.o build/bc_scanner.o build/umi.o build/edlib.o build/seq_fuzzy_match.o build/serialize.o build/gzreader.o build/khashtable.o build/mex.o
+lib/libhtswrapper.a: $(OBJS)
+	ar rcs lib/libhtswrapper.a $(OBJS)
 
 hash_bc: src/bc.h src/hash_bc.cpp build/bc.o build/gzreader.o
 	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -o hash_bc src/hash_bc.cpp build/gzreader.o build/bc.o -lz
@@ -70,6 +93,15 @@ build/kmsuftree.o: src/kmsuftree.c src/kmsuftree.h
 build/mex.o: src/mex.cpp src/mex.h
 	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -c -o build/mex.o src/mex.cpp
 
+build/h5_reader.o: src/h5_reader.cpp src/h5_reader.h
+	$(COMP) $(IFLAGS) -Iinclude $(HDF5_CFLAGS) $(FLAGS) -c -o build/h5_reader.o src/h5_reader.cpp
+
+build/anndata.o: src/anndata.cpp src/anndata.h src/h5_reader.h build/h5_reader.o
+	$(COMP) $(IFLAGS) -Iinclude $(HDF5_CFLAGS) $(FLAGS) -c -o build/anndata.o src/anndata.cpp
+
+build/loom.o: src/loom.cpp src/loom.h src/h5_reader.h build/h5_reader.o
+	$(COMP) $(IFLAGS) -Iinclude $(HDF5_CFLAGS) $(FLAGS) -c -o build/loom.o src/loom.cpp
+
 clean:
 	rm build/*.o
 	rm lib/*.so
@@ -88,6 +120,9 @@ install: | $(PREFIX)/lib $(PREFIX)/include/htswrapper
 	cp src/umi.h $(PREFIX)/include/htswrapper
 	cp src/seq_fuzzy_match.h $(PREFIX)/include/htswrapper
 	cp src/mex.h $(PREFIX)/include/htswrapper
+	cp src/h5_reader.h $(PREFIX)/include/htswrapper
+	cp src/anndata.h $(PREFIX)/include/htswrapper
+	cp src/loom.h $(PREFIX)/include/htswrapper
 	cp src/robin_hood/robin_hood.h $(PREFIX)/include/htswrapper/robin_hood
 	cp src/robin_hood/LICENSE $(PREFIX)/include/htswrapper/robin_hood
 	cp src/edlib/LICENSE $(PREFIX)/include/htswrapper/edlib
