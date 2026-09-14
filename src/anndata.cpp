@@ -171,6 +171,7 @@ Please open and re-save this file using a recent version of scanpy.");
                 } else if (codes_dtype == HighFive::AtomicType<int32_t>()) {
                     codes_ds.read(codes);
                 }
+                col_vals.clear();
                 col_vals.reserve(codes.size());
                 for (int i = 0; i < codes.size(); ++i){
                     if (codes[i] < 0){
@@ -332,8 +333,7 @@ Please open and re-save this file using a recent version of scanpy.");
                 return;
             }
             else{
-                fprintf(stderr, "ERROR: layer/data set %s not found in anndata.\n", countsname.c_str());
-                exit(1);
+                throw runtime_error("ERROR: layer/data set " + countsname + " not found in anndata.");
             }
         }
         else{
@@ -372,9 +372,8 @@ Please open and re-save this file using a recent version of scanpy.");
                     return;
                 }
                 else{
-                    fprintf(stderr, "ERROR: could not find expression data. Please specify where \
-    raw expression counts are stored in %s\n", filename.c_str());
-                    exit(1);
+                    throw runtime_error("ERROR: could not find expression data. Please specify where "
+                        "raw expression counts are stored in " + filename);
                 }
             }
         }

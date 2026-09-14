@@ -21,7 +21,7 @@ HDF5_FOUND := $(shell \
 LIBFLAGS = -lz -lhts
 ifeq ($(HDF5_FOUND),1)
 	LIBFLAGS += -lhdf5
-    OBJS += build/h5_reader.o build/anndata.o build/loom.o
+    OBJS += build/h5_reader.o build/anndata.o build/loom.o build/seurat.o
 	HDF5_CFLAGS := $(shell $(HDF5_PKG_CONFIG) --cflags hdf5)
 	HDF5_LIBS   := $(shell $(HDF5_PKG_CONFIG) --libs hdf5)
 endif
@@ -93,6 +93,9 @@ build/kmsuftree.o: src/kmsuftree.c src/kmsuftree.h
 build/mex.o: src/mex.cpp src/mex.h
 	$(COMP) $(IFLAGS) $(FLAGS) -DBC_LENX2=$(BC_LENX2) -DKX2=$(KX2) -c -o build/mex.o src/mex.cpp
 
+test_h5: src/test_h5.cpp build/h5_reader.o build/anndata.o build/loom.o build/seurat.o
+	$(COMP) $(IFLAGS) -Iinclude $(HDF5_CFLAGS) $(FLAGS) -o test_h5 src/test_h5.cpp build/h5_reader.o build/anndata.o build/loom.o build/seurat.o $(LFLAGS) $(HDF5_LIBS) $(LIBFLAGS)
+
 build/h5_reader.o: src/h5_reader.cpp src/h5_reader.h
 	$(COMP) $(IFLAGS) -Iinclude $(HDF5_CFLAGS) $(FLAGS) -c -o build/h5_reader.o src/h5_reader.cpp
 
@@ -101,6 +104,9 @@ build/anndata.o: src/anndata.cpp src/anndata.h src/h5_reader.h build/h5_reader.o
 
 build/loom.o: src/loom.cpp src/loom.h src/h5_reader.h build/h5_reader.o
 	$(COMP) $(IFLAGS) -Iinclude $(HDF5_CFLAGS) $(FLAGS) -c -o build/loom.o src/loom.cpp
+
+build/seurat.o: src/seurat.cpp src/seurat.h src/h5_reader.h build/h5_reader.o
+	$(COMP) $(IFLAGS) -Iinclude $(HDF5_CFLAGS) $(FLAGS) -c -o build/seurat.o src/seurat.cpp
 
 clean:
 	rm build/*.o
@@ -123,6 +129,7 @@ install: | $(PREFIX)/lib $(PREFIX)/include/htswrapper
 	cp src/h5_reader.h $(PREFIX)/include/htswrapper
 	cp src/anndata.h $(PREFIX)/include/htswrapper
 	cp src/loom.h $(PREFIX)/include/htswrapper
+	cp src/seurat.h $(PREFIX)/include/htswrapper
 	cp src/robin_hood/robin_hood.h $(PREFIX)/include/htswrapper/robin_hood
 	cp src/robin_hood/LICENSE $(PREFIX)/include/htswrapper/robin_hood
 	cp src/edlib/LICENSE $(PREFIX)/include/htswrapper/edlib

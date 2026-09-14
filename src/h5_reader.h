@@ -108,6 +108,9 @@ namespace sch5{
             
             // Cell barcodes to skip
             std::unordered_set<std::string> excl_bc;
+
+            // Whether the file has been reopened for writing
+            bool writable;
             
             // Look up encoding of h5 group
             bool check_encoding(const HighFive::Group& g);
@@ -140,6 +143,9 @@ namespace sch5{
             void load_mtx_dense(const std::string& name,
                 std::map<int32_t, std::map<int32_t, double> >& mtxmap);
             
+            // Reopen the file for writing if currently read-only
+            void ensure_writable();
+
             bool write_dense_aux(const std::string& path,
                 std::vector<double>& data,
                 bool rows_are_genes,
@@ -174,8 +180,6 @@ namespace sch5{
             h5_reader(const std::string& fn);
             virtual ~h5_reader();
             
-            void open(const std::string& fn);
-
             // Tell it the name of the (raw, un-scaled) counts layer
             void set_countsname(const std::string& n);
             

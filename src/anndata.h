@@ -65,12 +65,12 @@ namespace sch5{
             void load_layer(const std::string& layername,
                 std::vector<double>& data,
                 std::vector<int32_t>& indices,
-                std::vector<int64_t>& indptr);
+                std::vector<int64_t>& indptr) override;
 
             void write_layer(const std::string& layername,
                 std::vector<double>& data,
                 std::vector<int32_t>& indices,
-                std::vector<int64_t>& indptr);
+                std::vector<int64_t>& indptr) override;
 
     };
 };

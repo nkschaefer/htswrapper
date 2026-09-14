@@ -272,10 +272,10 @@ namespace sch5{
         vector<int32_t>& indices,
         vector<int64_t>& indptr){
 
-        fprintf(stderr, "Writing layer \"%s\" to h5ad...\n", layername.c_str());
+        fprintf(stderr, "Writing layer \"%s\" to loom...\n", layername.c_str());
 
         HighFive::Group layers;
-        if (!file.exist("layers")){
+        if (file.exist("layers")){
            layers = file.getGroup("layers");
         }
         else{
@@ -291,11 +291,11 @@ namespace sch5{
 
     void loom::write_layer(const std::string& layername,
         map<int32_t, map<int32_t, double> >& mapmtx){
-        
-        fprintf(stderr, "Writing layer \"%s\" to h5ad...\n", layername.c_str());
+
+        fprintf(stderr, "Writing layer \"%s\" to loom...\n", layername.c_str());
 
         HighFive::Group layers;
-        if (!file.exist("layers")){
+        if (file.exist("layers")){
             layers = file.getGroup("layers");
         }
         else{

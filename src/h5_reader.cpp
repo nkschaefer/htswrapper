@@ -29,6 +29,7 @@ namespace sch5{
         : file(fn, HighFive::File::ReadOnly){
         n_cells = 0;
         n_genes = 0;
+        writable = false;
         filename = fn;
     } catch(const HighFive::Exception& e){
         throw runtime_error("Error opening h5 file " + fn); 
@@ -39,6 +40,26 @@ namespace sch5{
      */
     h5_reader::~h5_reader(){
 
+    }
+
+    /**
+     * Reopen the file for writing if it was opened read-only.
+     */
+    void h5_reader::ensure_writable(){
+        if (writable){
+            return;
+        }
+        try{
+            {
+                HighFive::File old = std::move(file);
+            }
+            file = HighFive::File(filename, HighFive::File::ReadWrite);
+            writable = true;
+        }
+        catch(const HighFive::Exception& e){
+            throw runtime_error("Error reopening h5 file for writing: " +
+                filename);
+        }
     }
 
     /**
@@ -335,13 +356,12 @@ namespace sch5{
         if (dims.size() != 2){
             throw runtime_error("Dimensions missing from dense matrix " + name);
         }
-        // dense data is always row major
-        bool col_major = false;
+        bool genes_are_rows = false;
         if (dims[0] == n_genes && dims[1] == n_cells){
-            //col_major = true;
+            genes_are_rows = true;
         }
         else if (dims[0] == n_cells && dims[1] == n_genes){
-            //col_major = false;
+            genes_are_rows = false;
         }
         else{
             throw runtime_error("Dense matrix dimensions don't match metadata dimensions");
@@ -350,13 +370,13 @@ namespace sch5{
         indices.clear();
         indptr.clear();
         indptr.reserve((size_t)n_cells + 1);
-        
+
         int64_t idx_global = 0;
         for (int32_t c = 0; c < n_cells; ++c){
             indptr.push_back(idx_global);
             for (int32_t g = 0; g < n_genes; ++g){
                 double count = 0.0;
-                if (!col_major){
+                if (genes_are_rows){
                     count = dense_mtx[g * n_cells + c];
                 }
                 else{
@@ -371,29 +391,28 @@ namespace sch5{
         }
         indptr.push_back(idx_global);
     }
-    
+
     /**
      * Load a matrix in dense format and convert to a map.
      */
     void h5_reader::load_mtx_dense(const string& name,
         map<int32_t, map<int32_t, double> >& mtxmap){
-        
+
         HighFive::DataSet dset = file.getDataSet(name);
         vector<size_t> dims = dset.getDimensions();
-    
+
         vector<double> dense_mtx(n_genes * n_cells);
         dset.read_raw<double>(dense_mtx.data());
-         
+
         if (dims.size() != 2){
             throw runtime_error("Dimensions missing from dense matrix " + name);
         }
-        // dense data is always row-major
-        bool col_major = false;
+        bool genes_are_rows = false;
         if (dims[0] == n_genes && dims[1] == n_cells){
-            //col_major = true;
+            genes_are_rows = true;
         }
         else if (dims[0] == n_cells && dims[1] == n_genes){
-            //col_major = false;
+            genes_are_rows = false;
         }
         else{
             throw runtime_error("Dense matrix dimensions don't match metadata dimensions");
@@ -401,7 +420,7 @@ namespace sch5{
         for (int32_t c = 0; c < n_cells; ++c){
             for (int32_t g = 0; g < n_genes; ++g){
                 double count = 0.0;
-                if (!col_major){
+                if (genes_are_rows){
                     count = dense_mtx[g * n_cells + c];
                 }
                 else{
