@@ -1,5 +1,11 @@
 #ifndef _HTSWRAPPER_BC_H
 #define _HTSWRAPPER_BC_H
+#ifndef BC_LENX2
+#define BC_LENX2 32
+#endif
+#ifndef KX2
+#define KX2 16
+#endif
 #include <utility>
 #include <cstdlib>
 #include <set>
