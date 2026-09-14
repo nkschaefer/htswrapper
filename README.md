@@ -60,6 +60,8 @@ A class that makes it quick/easy to read and write binary data. Not much is yet 
 A class that makes it easy to de-duplicate UMIs. Stores bit-packed representations of UMI sequences. Can quickly find exact matches and uses k-mers to find matches with an edit distance of 1 if this fails. Provides a function to count unique UMIs after collapsing.
 
 ### Reading/modifying hdf5 files for single-cell data
+hdf5 file support requires libhdf5 (without it, these programs will not be compiled). hdf5 reading/writing is done via the included [HighFive](https://github.com/highfive-devs/highfive/) library.
+
 #### h5_reader.cpp / h5_reader.h
 Base class providing function templates
 
