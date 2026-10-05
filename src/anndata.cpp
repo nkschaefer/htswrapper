@@ -516,15 +516,28 @@ Please open and re-save this file using a recent version of scanpy.");
         obs.getAttribute("column-order").read(col_order);
         
         for (vector<string>::iterator col = col_order.begin(); col != col_order.end(); ++col){
-            bool int_type = false;
-            bool float_type = false;
             auto obj_type = obs.getObjectType(*col);
             if (obj_type == HighFive::ObjectType::Group){
-                // Categorical
-                str_cols.push_back(*col);
+                auto col_group = obs.getGroup(*col);
+                if (col_group.hasAttribute("encoding-type")){
+                    string enc_type = col_group.getAttribute("encoding-type").read<string>();
+                    if (enc_type == "nullable-integer"){
+                        int_cols.push_back(*col);
+                    }
+                    else if (enc_type == "categorical"){
+                        str_cols.push_back(*col);
+                    }
+                }
+                else{
+                    str_cols.push_back(*col);
+                }
             }
             else if (obj_type == HighFive::ObjectType::Dataset){
                 auto dataset = obs.getDataSet(*col);
+                if (dataset.hasAttribute("categories")){
+                    str_cols.push_back(*col);
+                    continue;
+                }
                 auto dtype = dataset.getDataType();
                 auto type_class = dtype.getClass();
                 if (type_class == HighFive::DataTypeClass::String){
@@ -538,7 +551,6 @@ Please open and re-save this file using a recent version of scanpy.");
                     float_cols.push_back(*col);
                 }
             }
-         
         }
     }
     
@@ -564,8 +576,7 @@ Please open and re-save this file using a recent version of scanpy.");
         if (ot == HighFive::ObjectType::Dataset){
             HighFive::DataSet ds = obs.getDataSet(col_name);
             if (ds.hasAttribute("categories")){
-                // categorical column, unsupported type
-                return h5_type_unknown;
+                return h5_type_str;
             }
             else{
                 return type_from_ds(ds);

@@ -322,12 +322,16 @@ namespace sch5{
             }
             else if (obj_type == HighFive::ObjectType::Dataset){
                 auto dataset = obs.getDataSet(*col);
+                if (dataset.hasAttribute("categories")){
+                    continue;
+                }
                 auto dtype = dataset.getDataType();
                 auto type_class = dtype.getClass();
                 if (type_class == HighFive::DataTypeClass::String){
                     str_cols.push_back(*col);
                 }
-                else if (type_class == HighFive::DataTypeClass::Integer || type_class == HighFive::DataTypeClass::Enum){
+                else if (type_class == HighFive::DataTypeClass::Integer ||
+                         type_class == HighFive::DataTypeClass::Enum){
                     int_cols.push_back(*col);
                 }
                 else if (type_class == HighFive::DataTypeClass::Float){
