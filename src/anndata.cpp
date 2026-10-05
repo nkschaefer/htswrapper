@@ -530,7 +530,8 @@ Please open and re-save this file using a recent version of scanpy.");
                 if (type_class == HighFive::DataTypeClass::String){
                     str_cols.push_back(*col);
                 }
-                else if (type_class == HighFive::DataTypeClass::Integer){
+                else if (type_class == HighFive::DataTypeClass::Integer ||
+                         type_class == HighFive::DataTypeClass::Enum){
                     int_cols.push_back(*col);
                 }
                 else if (type_class == HighFive::DataTypeClass::Float){

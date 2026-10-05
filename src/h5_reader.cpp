@@ -107,6 +107,16 @@ namespace sch5{
             }
             //read_int_flex<uint64_t>(ds, col_vals);
         }
+        else if (dt.getClass() == HighFive::DataTypeClass::Enum){
+            // Enum underlying storage is integral (typically int8 for booleans)
+            vector<long long> buf;
+            dataset.read(buf);
+            col_vals.clear();
+            col_vals.reserve(buf.size());
+            for (size_t i = 0; i < buf.size(); ++i){
+                col_vals.push_back(static_cast<int>(buf[i]));
+            }
+        }
         else{
             throw runtime_error("Encountered unsupported int column type");
         }
@@ -256,7 +266,8 @@ namespace sch5{
         if (type_class == HighFive::DataTypeClass::String){
             return h5_type_str;
         }
-        else if (type_class == HighFive::DataTypeClass::Integer){
+        else if (type_class == HighFive::DataTypeClass::Integer ||
+                 type_class == HighFive::DataTypeClass::Enum){
             return h5_type_int;
         }
         else if (type_class == HighFive::DataTypeClass::Float){

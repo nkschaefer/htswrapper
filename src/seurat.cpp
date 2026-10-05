@@ -430,7 +430,8 @@ namespace sch5{
                 // Factor; treat as a string
                 str_cols.push_back(names[i]);
             }
-            else if (type_class == HighFive::DataTypeClass::Integer){
+            else if (type_class == HighFive::DataTypeClass::Integer ||
+                     type_class == HighFive::DataTypeClass::Enum){
                 int_cols.push_back(names[i]);
             }
             else if (type_class == HighFive::DataTypeClass::Float){
