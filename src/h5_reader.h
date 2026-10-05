@@ -274,6 +274,9 @@ namespace sch5{
                 std::map<std::string, double>& col_vals,
                 bool force = false) = 0;
 
+            // Remove a metadata column
+            virtual bool rm_meta_col(const std::string& col_name) = 0;
+
             // Convert a CSC-format sparse matrix to CSR format
             void csc_to_csr(std::vector<double>& data,
                 std::vector<int32_t>& indices,

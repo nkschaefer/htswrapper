@@ -391,6 +391,16 @@ namespace sch5{
         return write_meta_col(col_name, vec, force);
     }
 
+    bool seurat::rm_meta_col(const string& col_name){
+        string path = "meta.data/" + col_name;
+        if (!file.exist(path)){
+            return false;
+        }
+        ensure_writable();
+        H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        return true;
+    }
+
     /**
      * Retrieve metadata column names by type.
      */

@@ -77,6 +77,8 @@ namespace sch5{
                 std::map<std::string, double>& col_vals,
                 bool force = false) override;
 
+            bool rm_meta_col(const std::string& col_name) override;
+
             // Load expression data in CSR format
             void load_expr(std::vector<double>& X_data,
                 std::vector<int32_t>& X_indices,

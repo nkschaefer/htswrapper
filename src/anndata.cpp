@@ -817,6 +817,28 @@ Please open and re-save this file using a recent version of scanpy.");
         return write_meta_col(col_name, vec, force);
     }
 
+    bool anndata::rm_meta_col(const string& col_name){
+        auto obs = file.getGroup("obs");
+        if (!obs.exist(col_name)){
+            return false;
+        }
+        ensure_writable();
+        string path = "/obs/" + col_name;
+        H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        // Remove from column-order
+        if (obs.hasAttribute("column-order")){
+            vector<string> col_order;
+            obs.getAttribute("column-order").read(col_order);
+            auto it = find(col_order.begin(), col_order.end(), col_name);
+            if (it != col_order.end()){
+                col_order.erase(it);
+                H5Adelete(obs.getId(), "column-order");
+                obs.createAttribute<vector<string>>("column-order", col_order);
+            }
+        }
+        return true;
+    }
+
     void anndata::load_expr(vector<double>& X_data,
         vector<int32_t>& X_indices,
         vector<int64_t>& X_indptr){
