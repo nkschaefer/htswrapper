@@ -70,7 +70,7 @@ namespace sch5{
     }
 
     /**
-     * Load an integer metadata column (to be implemented by child classes)
+     * Load an integer metadata column
      */
     void loom::load_meta_col(const string& col_name,
         vector<int>& col_vals,
@@ -92,9 +92,38 @@ namespace sch5{
             load_int_col_aux(dataset, col_vals);
         }
     }
+    
+    void loom::load_meta_col(const string& col_name,
+        vector<int>& col_vals,
+        vector<bool>& nanmask){
+        string path = "/col_attrs/" + col_name;
+        auto dataset = file.getDataSet(path);
+        // loom can use enum to store boolean; we will treat this as integer
+        auto datatype = dataset.getDataType();
+        if (datatype.getClass() == HighFive::DataTypeClass::Enum){
+            vector<long long> codes;
+            dataset.read(codes);
+            col_vals.clear();
+            col_vals.reserve(codes.size());
+            for (long long c : codes) {
+                col_vals.push_back(static_cast<int>(c));
+            }
+            // No missing value representation for enums
+            if (nanmask.size() == 0){
+                nanmask.assign(col_vals.size(), true);
+            }
+        }
+        else{
+            // Loom has no way to represent integer NAs
+            load_int_col_aux(dataset, col_vals);
+            if (nanmask.size() == 0){
+                nanmask.assign(col_vals.size(), true);
+            }
+        }
+    }
 
     /**
-     * Load a float metadata column (to be implemented by child classes)
+     * Load a float metadata column
      */
     void loom::load_meta_col(const string& col_name,
         vector<double>& col_vals,
@@ -104,10 +133,18 @@ namespace sch5{
         auto dataset = file.getDataSet(path);
         load_float_col_aux(dataset, col_vals, fix_nan);
     }
+    
+    void loom::load_meta_col(const string& col_name,
+        vector<double>& col_vals,
+        vector<bool>& nanmask){
+        
+        string path = "/col_attrs/" + col_name;
+        auto dataset = file.getDataSet(path);
+        load_float_col_aux(dataset, col_vals, nanmask);
+    }
 
     /**
      * Load a string or categorical column (as string data) from an h5 file.
-     * To be implemented by child classes.
      */
     void loom::load_meta_col(const string& col_name,
         vector<string>& col_vals,
@@ -119,6 +156,126 @@ namespace sch5{
 
     }
     
+    void loom::load_meta_col(const string& col_name,
+        vector<string>& col_vals,
+        vector<bool>& nanmask){
+        
+        string path = "/col_attrs/" + col_name;
+        auto dataset = file.getDataSet(path);
+        load_str_col_aux(dataset, col_vals, nanmask);
+    }
+    
+    bool loom::write_meta_col(const string& col_name,
+        vector<string>& col_vals,
+        bool force){
+
+        ensure_writable();
+        if ((long int)col_vals.size() != n_cells){
+            throw runtime_error("Error: column size does not match number of cells");
+        }
+        string path = "/col_attrs/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        file.createDataSet(path, col_vals);
+        return true;
+    }
+
+    bool loom::write_meta_col(const string& col_name,
+        vector<int>& col_vals,
+        bool force){
+
+        ensure_writable();
+        if ((long int)col_vals.size() != n_cells){
+            throw runtime_error("Error: column size does not match number of cells");
+        }
+        string path = "/col_attrs/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        file.createDataSet(path, col_vals);
+        return true;
+    }
+
+    bool loom::write_meta_col(const string& col_name,
+        vector<double>& col_vals,
+        bool force){
+
+        ensure_writable();
+        if ((long int)col_vals.size() != n_cells){
+            throw runtime_error("Error: column size does not match number of cells");
+        }
+        string path = "/col_attrs/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        file.createDataSet(path, col_vals);
+        return true;
+    }
+
+    bool loom::write_meta_col(const string& col_name,
+        map<string, string>& col_vals,
+        bool force){
+
+        vector<string> vec;
+        vec.reserve(n_cells);
+        for (long int i = 0; i < n_cells; ++i){
+            auto it = col_vals.find(cell_names[i]);
+            if (it != col_vals.end()){
+                vec.push_back(it->second);
+            }
+            else{
+                vec.push_back("");
+            }
+        }
+        return write_meta_col(col_name, vec, force);
+    }
+
+    bool loom::write_meta_col(const string& col_name,
+        map<string, int>& col_vals,
+        bool force){
+
+        vector<int> vec;
+        vec.reserve(n_cells);
+        for (long int i = 0; i < n_cells; ++i){
+            auto it = col_vals.find(cell_names[i]);
+            if (it != col_vals.end()){
+                vec.push_back(it->second);
+            }
+            else{
+                vec.push_back(0);
+            }
+        }
+        return write_meta_col(col_name, vec, force);
+    }
+
+    bool loom::write_meta_col(const string& col_name,
+        map<string, double>& col_vals,
+        bool force){
+
+        vector<double> vec;
+        vec.reserve(n_cells);
+        for (long int i = 0; i < n_cells; ++i){
+            auto it = col_vals.find(cell_names[i]);
+            if (it != col_vals.end()){
+                vec.push_back(it->second);
+            }
+            else{
+                vec.push_back(numeric_limits<double>::quiet_NaN());
+            }
+        }
+        return write_meta_col(col_name, vec, force);
+    }
+
     /**
      * Retrieve layer names.
      */

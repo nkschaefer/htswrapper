@@ -133,6 +133,25 @@ namespace sch5{
             throw runtime_error("encountered unsupported float column type");
         }
     }
+    
+    void h5_reader::load_float_col_aux(HighFive::DataSet& dataset,
+        vector<double>& col_vals,
+        vector<bool>& nanmask){
+        
+        auto dt = dataset.getDataType();
+        if (dt == HighFive::AtomicType<float>()){
+            read_float_flex<float>(dataset, col_vals, nanmask);
+        }
+        else if (dt == HighFive::AtomicType<double>()){
+            read_float_flex<double>(dataset, col_vals, nanmask);
+        }
+        else if (dt == HighFive::AtomicType<long double>()){
+            read_float_flex<long double>(dataset, col_vals, nanmask);
+        }
+        else{
+            throw runtime_error("encountered unsupported float column type");
+        }
+    }
 
     /**
      * Load fixed & variable-length strings as standard strings
@@ -173,6 +192,64 @@ namespace sch5{
         }
     }
     
+    void h5_reader::load_str_col_aux(HighFive::DataSet& dataset,
+        vector<string>& col_vals,
+        vector<bool>& nanmask){
+        
+        auto dtype = dataset.getDataType();
+        if (dtype.getClass() != HighFive::DataTypeClass::String){
+            throw runtime_error("encountered unsupported string column type");
+        }
+        const size_t n = dataset.getSpace().getElementCount();
+        if (n == 0){
+            return;
+        }
+        col_vals.clear();
+        if (dtype.isVariableStr()){
+            dataset.read(col_vals);
+        }
+        else{
+            // Fixed-length strings
+            const size_t width = dtype.getSize();
+            vector<char> buf(n * width);
+            dataset.read_raw(buf.data(), dtype);
+            col_vals.reserve(n);
+            for (size_t i = 0; i < n; ++i){
+                const char* p = buf.data() + i * width;
+                // Length = up to first null
+                size_t len = 0;
+                while (len < width && p[len] != '\0'){
+                    ++len;
+                }
+                while (len > 0 && p[len - 1] == ' '){
+                    --len;
+                }
+                col_vals.emplace_back(p, len);
+            }
+        }
+        
+        // Assume NaN values are encoded as empty strings
+        bool build_nanmask = nanmask.size() == 0;
+        if (!build_nanmask && nanmask.size() != col_vals.size()){
+            throw runtime_error("Error: mask is different size than data");
+        }
+        for (int i = 0; i < col_vals.size(); ++i){
+            if (col_vals[i] == ""){
+                if (build_nanmask){
+                    nanmask.push_back(false);
+                }
+                else{
+                    nanmask[i] = false;
+                }
+            }
+            else{
+                if (build_nanmask){
+                    nanmask.push_back(true);
+                }
+            }
+        }
+    }
+
     short h5_reader::type_from_ds(HighFive::DataSet& ds){
         auto dtype = ds.getDataType();
         auto type_class = dtype.getClass(); 

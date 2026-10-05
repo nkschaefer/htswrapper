@@ -94,7 +94,37 @@ namespace sch5{
                     out.push_back(v);
                 }
             }
-
+            
+            template <typename T>
+            void read_float_flex(const HighFive::DataSet& ds,
+                               std::vector<double>& out,
+                               std::vector<bool>& nanmask) {
+                static_assert(std::is_floating_point<T>::value, "read_float_flex requires a floating-point T");
+                bool build_mask = nanmask.size() == 0;
+                std::vector<T> buf;
+                ds.read(buf);
+                if (!build_mask && buf.size() != nanmask.size()) throw std::runtime_error("Error: mask size != data size");
+                out.clear();
+                out.reserve(buf.size());
+                for (size_t i = 0; i < buf.size(); ++i) {
+                    double v = static_cast<double>(buf[i]);   // float→double is exact
+                    if (!std::isfinite(v)) {
+                        v = 0.0;
+                        if (build_mask){
+                            nanmask.push_back(false);
+                        }
+                        else{
+                            nanmask[i] = false;
+                        }
+                    }
+                    else{
+                        if (build_mask){
+                            nanmask.push_back(true);
+                        }
+                    }
+                    out.push_back(v);
+                }
+            }
         protected:
             
             // Name of input h5 file
@@ -122,9 +152,17 @@ namespace sch5{
                 std::vector<double>& col_data,
                 bool fix_nan = true);
             
+            void load_float_col_aux(HighFive::DataSet& ds,
+                std::vector<double>& col_data,
+                std::vector<bool>& nanmask);
+
             void load_str_col_aux(HighFive::DataSet& ds,
                 std::vector<std::string>& col_data);
             
+            void load_str_col_aux(HighFive::DataSet& ds,
+                std::vector<std::string>& col_data,
+                std::vector<bool>& nanmask);
+
             short type_from_ds(HighFive::DataSet& ds);
         
             // Load a count matrix (in CSR format)
@@ -183,6 +221,8 @@ namespace sch5{
             // Tell it the name of the (raw, un-scaled) counts layer
             void set_countsname(const std::string& n);
             
+            // ===== Functions to load metadata columns ===== //
+
             virtual void load_meta_col(const std::string& col_name, 
                 std::vector<int>& col_vals,
                 bool fix_nan = true) = 0;
@@ -195,6 +235,45 @@ namespace sch5{
                 std::vector<std::string>& col_vals,
                 bool fix_nan = true) = 0;
             
+            virtual void load_meta_col(const std::string& col_name, 
+                std::vector<int>& col_vals,
+                std::vector<bool>& nanmask) = 0;
+            
+            virtual void load_meta_col(const std::string& col_name, 
+                std::vector<double>& col_vals,
+                std::vector<bool>& nanmask) = 0;
+
+            virtual void load_meta_col(const std::string& col_name, 
+                std::vector<std::string>& col_vals,
+                std::vector<bool>& nanmask) = 0;
+            
+            // ===== Functions to write metadata columns ===== //
+            // As vectors - assume dimensions already match metadata
+            virtual bool write_meta_col(const std::string& col_name,
+                std::vector<std::string>& col_vals,
+                bool force = false) = 0;
+
+            virtual bool write_meta_col(const std::string& col_name,
+                std::vector<int>& col_vals,
+                bool force = false) = 0;
+
+            virtual bool write_meta_col(const std::string& col_name,
+                std::vector<double>& col_vals,
+                bool force = false) = 0;
+
+            // As maps - match barcodes to keys when writing
+            virtual bool write_meta_col(const std::string& col_name,
+                std::map<std::string, std::string>& col_vals,
+                bool force = false) = 0;
+
+            virtual bool write_meta_col(const std::string& col_name,
+                std::map<std::string, int>& col_vals,
+                bool force = false) = 0;
+
+            virtual bool write_meta_col(const std::string& col_name,
+                std::map<std::string, double>& col_vals,
+                bool force = false) = 0;
+
             // Convert a CSC-format sparse matrix to CSR format
             void csc_to_csr(std::vector<double>& data,
                 std::vector<int32_t>& indices,
