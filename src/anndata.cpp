@@ -44,11 +44,40 @@ namespace sch5{
                 }
                 else if (dtype.getClass() == HighFive::DataTypeClass::Integer){
                     // Numeric index (e.g. RangeIndex) -- convert to strings
-                    vector<int64_t> int_index;
-                    ds.read(int_index);
-                    cell_names.reserve(int_index.size());
-                    for (size_t i = 0; i < int_index.size(); ++i){
-                        cell_names.push_back(to_string(int_index[i]));
+                    // Match against concrete AtomicTypes to avoid
+                    // long vs long long mismatch across platforms
+                    if (dtype == HighFive::AtomicType<int32_t>()){
+                        vector<int32_t> int_index;
+                        ds.read(int_index);
+                        cell_names.reserve(int_index.size());
+                        for (size_t i = 0; i < int_index.size(); ++i){
+                            cell_names.push_back(to_string(int_index[i]));
+                        }
+                    }
+                    else if (dtype == HighFive::AtomicType<long>()){
+                        vector<long> int_index;
+                        ds.read(int_index);
+                        cell_names.reserve(int_index.size());
+                        for (size_t i = 0; i < int_index.size(); ++i){
+                            cell_names.push_back(to_string(int_index[i]));
+                        }
+                    }
+                    else if (dtype == HighFive::AtomicType<long long>()){
+                        vector<long long> int_index;
+                        ds.read(int_index);
+                        cell_names.reserve(int_index.size());
+                        for (size_t i = 0; i < int_index.size(); ++i){
+                            cell_names.push_back(to_string(int_index[i]));
+                        }
+                    }
+                    else{
+                        // Fallback for other integer widths
+                        vector<int> int_index;
+                        ds.read(int_index);
+                        cell_names.reserve(int_index.size());
+                        for (size_t i = 0; i < int_index.size(); ++i){
+                            cell_names.push_back(to_string(int_index[i]));
+                        }
                     }
                 }
                 else{
@@ -75,11 +104,37 @@ namespace sch5{
                     ds.read(gene_names);
                 }
                 else if (dtype.getClass() == HighFive::DataTypeClass::Integer){
-                    vector<int64_t> int_index;
-                    ds.read(int_index);
-                    gene_names.reserve(int_index.size());
-                    for (size_t i = 0; i < int_index.size(); ++i){
-                        gene_names.push_back(to_string(int_index[i]));
+                    if (dtype == HighFive::AtomicType<int32_t>()){
+                        vector<int32_t> int_index;
+                        ds.read(int_index);
+                        gene_names.reserve(int_index.size());
+                        for (size_t i = 0; i < int_index.size(); ++i){
+                            gene_names.push_back(to_string(int_index[i]));
+                        }
+                    }
+                    else if (dtype == HighFive::AtomicType<long>()){
+                        vector<long> int_index;
+                        ds.read(int_index);
+                        gene_names.reserve(int_index.size());
+                        for (size_t i = 0; i < int_index.size(); ++i){
+                            gene_names.push_back(to_string(int_index[i]));
+                        }
+                    }
+                    else if (dtype == HighFive::AtomicType<long long>()){
+                        vector<long long> int_index;
+                        ds.read(int_index);
+                        gene_names.reserve(int_index.size());
+                        for (size_t i = 0; i < int_index.size(); ++i){
+                            gene_names.push_back(to_string(int_index[i]));
+                        }
+                    }
+                    else{
+                        vector<int> int_index;
+                        ds.read(int_index);
+                        gene_names.reserve(int_index.size());
+                        for (size_t i = 0; i < int_index.size(); ++i){
+                            gene_names.push_back(to_string(int_index[i]));
+                        }
                     }
                 }
                 else{
