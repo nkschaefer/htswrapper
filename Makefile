@@ -3,7 +3,7 @@ COMP=g++
 CCOMP=gcc
 PREFIX ?=/usr/local
 CFLAGS = -fPIC
-FLAGS=-std=c++14 --std=gnu++14 -fPIC -O3 -g
+FLAGS=-std=c++14 --std=gnu++14 -fPIC -O3
 IFLAGS=-I$(PREFIX)/include
 LFLAGS=-L$(PREFIX)/lib
 
@@ -20,15 +20,18 @@ HDF5_FOUND := $(shell \
     $(HDF5_PKG_CONFIG) --exists hdf5 && echo 1 || echo 0)
 LIBFLAGS = -lz -lhts
 ifeq ($(HDF5_FOUND),1)
+$(info HDF5 support found. Building h5 file readers.)
 	LIBFLAGS += -lhdf5
     OBJS += build/h5_reader.o build/anndata.o build/loom.o build/seurat.o
 	HDF5_CFLAGS := $(shell $(HDF5_PKG_CONFIG) --cflags hdf5)
 	HDF5_LIBS   := $(shell $(HDF5_PKG_CONFIG) --libs hdf5)
+else
+$(info HDF5 support not found. Skipping h5 file readers.)
 endif
 
 # Let current conda env (if active and non-base) provide libraries & headers
 ifeq ($(filter-out base,$(CONDA_DEFAULT_ENV)),)
-    # Either unset/empty, or exactly "base" → NOT a usable non-base env
+    # Either unset/empty, or exactly "base"
     CONDA_ACTIVE_NONBASE :=
 else
     CONDA_ACTIVE_NONBASE := 1

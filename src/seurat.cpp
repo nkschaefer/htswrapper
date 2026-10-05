@@ -26,7 +26,7 @@ namespace sch5{
 
     bool seurat::is_data_slot(const string& name){
         return (name == "counts" || name == "data" ||
-                name == "scale.data");
+            name == "scale.data");
     }
 
     /**
@@ -110,6 +110,45 @@ namespace sch5{
         }
         load_int_col_aux(dataset, col_vals);
     }
+    
+    void seurat::load_meta_col(const string& col_name,
+        vector<int>& col_vals,
+        vector<bool>& nanmask){
+
+        string path = "meta.data/" + col_name;
+        if (!file.exist(path)){
+            throw runtime_error("metadata column " + col_name + " not found");
+        }
+        auto dataset = file.getDataSet(path);
+
+        if (dataset.hasAttribute("levels")){
+            throw runtime_error("metadata column " + col_name +
+                " is a factor (categorical); load as string instead");
+        }
+        // Ignore NAs? 
+        load_int_col_aux(dataset, col_vals);
+        
+        // I think h5Seurat represents missing values as minimum possible int32
+        bool build_nanmask = nanmask.size() == 0;
+        if (!build_nanmask && nanmask.size() != col_vals.size()){
+            throw runtime_error("Error: mask size different from data size");
+        }
+        for (int i = 0; i < col_vals.size(); ++i){
+            if (col_vals[i] == numeric_limits<int32_t>::min()){
+                if (build_nanmask){
+                    nanmask.push_back(false);
+                }
+                else{
+                    nanmask[i] = false;
+                }
+            }
+            else{
+                if (build_nanmask){
+                    nanmask.push_back(true);
+                }
+            } 
+        }
+    }
 
     /**
      * Load a float metadata column.
@@ -124,6 +163,18 @@ namespace sch5{
         }
         auto dataset = file.getDataSet(path);
         load_float_col_aux(dataset, col_vals, fix_nan);
+    }
+    
+    void seurat::load_meta_col(const string& col_name,
+        vector<double>& col_vals,
+        vector<bool>& nanmask){
+
+        string path = "meta.data/" + col_name;
+        if (!file.exist(path)){
+            throw runtime_error("metadata column " + col_name + " not found");
+        }
+        auto dataset = file.getDataSet(path);
+        load_float_col_aux(dataset, col_vals, nanmask);
     }
 
     /**
@@ -167,6 +218,178 @@ namespace sch5{
                 " is not a string or factor column");
         }
     }
+    
+    void seurat::load_meta_col(const string& col_name,
+        vector<string>& col_vals,
+        vector<bool>& nanmask){
+
+        string path = "meta.data/" + col_name;
+        if (!file.exist(path)){
+            throw runtime_error("metadata column " + col_name + " not found");
+        }
+        auto ds = file.getDataSet(path);
+        auto dtype = ds.getDataType();
+
+        if (dtype.getClass() == HighFive::DataTypeClass::String){
+            load_str_col_aux(ds, col_vals, nanmask);
+        }
+        else if (ds.hasAttribute("levels")){
+            // Factor column: integer codes + levels attribute
+            vector<string> levels;
+            ds.getAttribute("levels").read(levels);
+
+            vector<int> codes;
+            load_int_col_aux(ds, codes);
+
+            col_vals.clear();
+            col_vals.reserve(codes.size());
+            bool build_nanmask = nanmask.size() == 0;
+            if (!build_nanmask && nanmask.size() != codes.size()){
+                throw runtime_error("nan mask vector different size than data");
+            }
+            for (size_t i = 0; i < codes.size(); ++i){
+                if (codes[i] < 0 || codes[i] >= (int)levels.size()){
+                    col_vals.push_back("");
+                    if (build_nanmask){
+                        nanmask.push_back(false);
+                    }
+                    else{
+                        nanmask[i] = false;
+                    }
+                }
+                else{
+                    col_vals.push_back(levels[codes[i]]);
+                    if (build_nanmask){
+                        nanmask.push_back(true);
+                    }
+                }
+            }
+        }
+        else{
+            throw runtime_error("metadata column " + col_name +
+                " is not a string or factor column");
+        }
+    }
+    bool seurat::write_meta_col(const string& col_name,
+        vector<string>& col_vals,
+        bool force){
+
+        ensure_writable();
+        if ((long int)col_vals.size() != n_cells){
+            throw runtime_error("Error: column size does not match number of cells");
+        }
+        if (!file.exist("meta.data")){
+            file.createGroup("meta.data");
+        }
+        string path = "meta.data/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        file.createDataSet(path, col_vals);
+        return true;
+    }
+
+    bool seurat::write_meta_col(const string& col_name,
+        vector<int>& col_vals,
+        bool force){
+
+        ensure_writable();
+        if ((long int)col_vals.size() != n_cells){
+            throw runtime_error("Error: column size does not match number of cells");
+        }
+        if (!file.exist("meta.data")){
+            file.createGroup("meta.data");
+        }
+        string path = "meta.data/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        file.createDataSet(path, col_vals);
+        return true;
+    }
+
+    bool seurat::write_meta_col(const string& col_name,
+        vector<double>& col_vals,
+        bool force){
+
+        ensure_writable();
+        if ((long int)col_vals.size() != n_cells){
+            throw runtime_error("Error: column size does not match number of cells");
+        }
+        if (!file.exist("meta.data")){
+            file.createGroup("meta.data");
+        }
+        string path = "meta.data/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        file.createDataSet(path, col_vals);
+        return true;
+    }
+
+    bool seurat::write_meta_col(const string& col_name,
+        map<string, string>& col_vals,
+        bool force){
+
+        vector<string> vec;
+        vec.reserve(n_cells);
+        for (long int i = 0; i < n_cells; ++i){
+            auto it = col_vals.find(cell_names[i]);
+            if (it != col_vals.end()){
+                vec.push_back(it->second);
+            }
+            else{
+                vec.push_back("");
+            }
+        }
+        return write_meta_col(col_name, vec, force);
+    }
+
+    bool seurat::write_meta_col(const string& col_name,
+        map<string, int>& col_vals,
+        bool force){
+
+        vector<int> vec;
+        vec.reserve(n_cells);
+        for (long int i = 0; i < n_cells; ++i){
+            auto it = col_vals.find(cell_names[i]);
+            if (it != col_vals.end()){
+                vec.push_back(it->second);
+            }
+            else{
+                // R's NA_integer_ is stored as INT32_MIN in HDF5
+                vec.push_back(numeric_limits<int32_t>::min());
+            }
+        }
+        return write_meta_col(col_name, vec, force);
+    }
+
+    bool seurat::write_meta_col(const string& col_name,
+        map<string, double>& col_vals,
+        bool force){
+
+        vector<double> vec;
+        vec.reserve(n_cells);
+        for (long int i = 0; i < n_cells; ++i){
+            auto it = col_vals.find(cell_names[i]);
+            if (it != col_vals.end()){
+                vec.push_back(it->second);
+            }
+            else{
+                vec.push_back(numeric_limits<double>::quiet_NaN());
+            }
+        }
+        return write_meta_col(col_name, vec, force);
+    }
 
     /**
      * Retrieve metadata column names by type.
@@ -194,7 +417,7 @@ namespace sch5{
                 str_cols.push_back(names[i]);
             }
             else if (ds.hasAttribute("levels")){
-                // Factor → treat as string
+                // Factor; treat as a string
                 str_cols.push_back(names[i]);
             }
             else if (type_class == HighFive::DataTypeClass::Integer){
@@ -238,7 +461,7 @@ namespace sch5{
      * h5Seurat stores sparse matrices as dgCMatrix (CSC with features as
      * rows, cells as columns).  CSC of (features x cells) is equivalent
      * to CSR of (cells x features), so the data/indices/indptr can be
-     * used directly — no conversion needed.
+     * used directly; no conversion needed.
      *
      * If encoding-type IS present (e.g. written by this library), we
      * honour it so a CSC-tagged group still gets converted correctly.
@@ -268,7 +491,7 @@ namespace sch5{
             // indices, so the data is directly usable as CSR.
         }
         else if (obj_type == HighFive::ObjectType::Dataset){
-            // Dense — cells x genes, row-major
+            // Dense: cells x genes, row-major
             vector<double> mtx(n_cells * n_genes);
             auto ds = file.getDataSet(name);
             ds.read_raw<double>(mtx.data());

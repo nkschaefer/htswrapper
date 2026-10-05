@@ -76,24 +76,118 @@ namespace sch5{
     }
 
     /**
-     * Load an integer metadata column (to be implemented by child classes)
+     * Load an integer metadata column
      */
     void anndata::load_meta_col(const string& col_name,
         vector<int>& col_vals,
         bool fix_nan){
+
         string path = "/obs/" + col_name;
-        auto dataset = file.getDataSet(path);
-        auto dtype = dataset.getDataType();
-        
-        if (dataset.hasAttribute("categories")){
-            throw runtime_error("Error: metadata column has attribute \"categories.\" \
-This is not a valid integer column.");
+        HighFive::ObjectType ot = file.getObjectType(path);
+        if (ot == HighFive::ObjectType::Group){
+            // Nullable integer
+            auto col_group = file.getGroup(path);
+            string enc_type = col_group.getAttribute("encoding-type").read<string>();
+            if (enc_type == "nullable-integer"){
+                auto dataset = col_group.getDataSet("values");
+                auto mdataset = col_group.getDataSet("mask");
+                load_int_col_aux(dataset, col_vals);
+                if (fix_nan){
+                    vector<bool> mask;
+                    mask.reserve(col_vals.size());
+                    mdataset.read(mask);
+                    // AnnData mask: true = NA/missing, false = valid
+                    for (int i = 0; i < mask.size(); ++i){
+                        if (mask[i]){
+                            col_vals[i] = 0;
+                        }
+                    }
+                }
+            }
+            else{
+                throw runtime_error("Error: unknown column type for " + col_name);
+            }
         }
-        load_int_col_aux(dataset, col_vals);
+        else if (ot == HighFive::ObjectType::Dataset){
+            // Ordinary integer column
+            auto dataset = file.getDataSet(path);
+            auto dtype = dataset.getDataType();
+            if (dataset.hasAttribute("categories")){
+                throw runtime_error("Error: metadata column has attribute \"categories.\" \
+    This is not a valid integer column.");
+            }
+            load_int_col_aux(dataset, col_vals);
+        }
+        else{
+            throw runtime_error("Error: unknown column type for " + col_name);
+        }
+    }
+    
+    void anndata::load_meta_col(const string& col_name,
+        vector<int>& col_vals,
+        vector<bool>& nanmask){
+        
+        bool build_nanmask = nanmask.size() == 0;
+
+        string path = "/obs/" + col_name;
+        HighFive::ObjectType ot = file.getObjectType(path);
+        if (ot == HighFive::ObjectType::Group){
+            // Nullable integer
+            auto col_group = file.getGroup(path);
+            string enc_type = col_group.getAttribute("encoding-type").read<string>();
+            if (enc_type == "nullable-integer"){
+                auto dataset = col_group.getDataSet("values");
+                auto mdataset = col_group.getDataSet("mask");
+                load_int_col_aux(dataset, col_vals);
+
+                // AnnData mask: true = NA/missing, false = valid
+                // nanmask convention: true = valid, false = missing
+                vector<bool> hdf5_mask;
+                hdf5_mask.reserve(col_vals.size());
+                mdataset.read(hdf5_mask);
+
+                if (build_nanmask){
+                    nanmask.reserve(col_vals.size());
+                    for (size_t i = 0; i < hdf5_mask.size(); ++i){
+                        nanmask.push_back(!hdf5_mask[i]);
+                    }
+                }
+                else{
+                    if (nanmask.size() != col_vals.size()){
+                        throw runtime_error("Error: mask size different from data size");
+                    }
+                    for (size_t i = 0; i < hdf5_mask.size(); ++i){
+                        if (hdf5_mask[i]){
+                            nanmask[i] = false;
+                        }
+                    }
+                }
+            }
+            else{
+                throw runtime_error("Error: unknown column type for " + col_name);
+            }
+        }
+        else if (ot == HighFive::ObjectType::Dataset){
+            // Ordinary integer column
+            auto dataset = file.getDataSet(path);
+            auto dtype = dataset.getDataType();
+            if (dataset.hasAttribute("categories")){
+                throw runtime_error("Error: metadata column has attribute \"categories.\" \
+    This is not a valid integer column.");
+            }
+            load_int_col_aux(dataset, col_vals);
+            // Plain integer columns have no missing values
+            if (build_nanmask){
+                nanmask.assign(col_vals.size(), true);
+            }
+        }
+        else{
+            throw runtime_error("Error: unknown column type for " + col_name);
+        }
     }
 
     /**
-     * Load a float metadata column (to be implemented by child classes)
+     * Load a float metadata column
      */
     void anndata::load_meta_col(const string& col_name,
         vector<double>& col_vals,
@@ -103,10 +197,18 @@ This is not a valid integer column.");
         auto dtype = dataset.getDataType();
         load_float_col_aux(dataset, col_vals, fix_nan);
     }
+    
+    void anndata::load_meta_col(const string& col_name,
+        vector<double>& col_vals,
+        vector<bool>& nanmask){
+        string path = "/obs/" + col_name;
+        auto dataset = file.getDataSet(path);
+        auto dtype = dataset.getDataType();
+        load_float_col_aux(dataset, col_vals, nanmask);
+    }
 
     /**
      * Load a string or categorical column (as string data) from an h5 file.
-     * To be implemented by child classes.
      */
     void anndata::load_meta_col(const string& col_name,
         vector<string>& col_vals,
@@ -145,9 +247,9 @@ Please open and re-save this file using a recent version of scanpy.");
                 load_str_col_aux(ds, col_vals);
                 vector<bool> mask;
                 col_group.getDataSet("mask").read(mask);
+                // AnnData mask: true = NA/missing, false = valid
                 for (int i = 0; i < mask.size(); ++i){
-                    // Set missing values to empty string
-                    if (!mask[i]){
+                    if (mask[i]){
                         col_vals[i] = "";
                     }
                 }
@@ -192,6 +294,115 @@ Please open and re-save this file using a recent version of scanpy.");
         }
     }
     
+    void anndata::load_meta_col(const string& col_name,
+        vector<string>& col_vals,
+        vector<bool>& nanmask){
+        string path = "/obs/" + col_name;
+        HighFive::ObjectType ot = file.getObjectType(path);
+        if (ot == HighFive::ObjectType::Dataset){
+            HighFive::DataSet ds = file.getDataSet(path);
+            if (ds.hasAttribute("categories")){
+                // categorical column.
+                throw runtime_error("Error: metadata column " + col_name + " has attribute \"categories.\" \
+Please open and re-save this file using a recent version of scanpy.");
+            }
+            else{
+                auto dtype = ds.getDataType();
+                if (dtype.getClass() == HighFive::DataTypeClass::String){
+                    // string column
+                    load_str_col_aux(ds, col_vals, nanmask);
+                }
+                else{
+                    throw runtime_error("Error: metadata column " + col_name + " has unknown type.");
+                }
+            }
+        }
+        else if (ot == HighFive::ObjectType::Group){
+            // categorical column
+            auto col_group = file.getGroup(path);
+            auto names =  col_group.listObjectNames();
+            bool has_values = find(names.begin(), names.end(), "values") != names.end();
+            bool has_mask = find(names.begin(), names.end(), "mask") != names.end();
+            bool has_cats = find(names.begin(), names.end(), "categories") != names.end();
+            bool has_codes = find(names.begin(), names.end(), "codes") != names.end();
+            if (has_values && has_mask){
+                // Masked strings
+                HighFive::DataSet ds = col_group.getDataSet("values");
+                load_str_col_aux(ds, col_vals);
+                // AnnData mask: true = NA/missing, false = valid
+                // nanmask convention: true = valid, false = missing
+                vector<bool> hdf5_mask;
+                col_group.getDataSet("mask").read(hdf5_mask);
+                if (nanmask.size() == 0){
+                    nanmask.reserve(hdf5_mask.size());
+                    for (size_t i = 0; i < hdf5_mask.size(); ++i){
+                        nanmask.push_back(!hdf5_mask[i]);
+                    }
+                }
+                else{
+                    if (nanmask.size() != col_vals.size()){
+                        throw runtime_error("Error: nan mask dimensions different from data");
+                    }
+                    for (size_t i = 0; i < hdf5_mask.size(); ++i){
+                        if (hdf5_mask[i]){
+                            nanmask[i] = false;
+                        }
+                    }
+                }
+            }
+            else if (has_cats && has_codes){
+                // Factor variable
+                vector<string> cats;
+                HighFive::DataSet ds = col_group.getDataSet("categories");
+                load_str_col_aux(ds, cats);
+                auto codes_ds = col_group.getDataSet("codes");
+                auto codes_dtype = codes_ds.getDataType();
+                std::vector<int> codes;
+                if (codes_dtype == HighFive::AtomicType<int8_t>()) {
+                    std::vector<int8_t> buf;
+                    codes_ds.read(buf);
+                    codes.assign(buf.begin(), buf.end());
+                } else if (codes_dtype == HighFive::AtomicType<int16_t>()) {
+                    std::vector<int16_t> buf;
+                    codes_ds.read(buf);
+                    codes.assign(buf.begin(), buf.end());
+                } else if (codes_dtype == HighFive::AtomicType<int32_t>()) {
+                    codes_ds.read(codes);
+                }
+                col_vals.clear();
+                col_vals.reserve(codes.size());
+                bool nm_append = nanmask.size() == 0;
+                if (!nm_append && codes.size() != nanmask.size()){
+                    throw runtime_error("Error: nan mask dimensions different from data");
+                }
+                for (int i = 0; i < codes.size(); ++i){
+                    if (codes[i] < 0){
+                        col_vals.push_back("");
+                        if (nm_append){
+                            nanmask.push_back(false);
+                        }
+                        else{
+                            nanmask[i] = false;
+                        }
+                    }
+                    else{
+                        col_vals.push_back(cats[codes[i]]);
+                        if (nm_append){
+                            nanmask.push_back(true);
+                        }
+                    }
+                }
+            }
+            else{
+                throw runtime_error("Error: unable to interpret group data for column " + col_name);
+            }
+            
+        }
+        else{
+            throw runtime_error("Error: unknown object type for column " + col_name);
+        }
+    }
+
     /**
      * Retrieve layer names.
      */
@@ -275,24 +486,250 @@ Please open and re-save this file using a recent version of scanpy.");
             }
         }
         else if (ot == HighFive::ObjectType::Group){
-            // categorical column
             auto col_group = obs.getGroup(col_name);
-            auto names =  col_group.listObjectNames();
-            bool has_values = find(names.begin(), names.end(), "values") != names.end();
-            bool has_mask = find(names.begin(), names.end(), "mask") != names.end();
-            bool has_cats = find(names.begin(), names.end(), "categories") != names.end();
-            bool has_codes = find(names.begin(), names.end(), "codes") != names.end();
-            if (has_values && has_mask){
-                return sch5::h5_type_str;
+            string enc_type = col_group.getAttribute("encoding-type").read<string>();
+            if (enc_type == "nullable-integer"){
+                return sch5::h5_type_int;
             }
-            else if (has_cats && has_codes){
-                return sch5::h5_type_str;
+            else if (enc_type == "categorical"){
+                // categorical column
+                auto names =  col_group.listObjectNames();
+                bool has_values = find(names.begin(), names.end(), "values") != names.end();
+                bool has_mask = find(names.begin(), names.end(), "mask") != names.end();
+                bool has_cats = find(names.begin(), names.end(), "categories") != names.end();
+                bool has_codes = find(names.begin(), names.end(), "codes") != names.end();
+                if (has_values && has_mask){
+                    return sch5::h5_type_str;
+                }
+                else if (has_cats && has_codes){
+                    return sch5::h5_type_str;
+                }
+                else{
+                    return sch5::h5_type_unknown;
+                }
             }
             else{
                 return sch5::h5_type_unknown;
             }
         }
         return sch5::h5_type_unknown;
+    }
+
+    bool anndata::write_meta_col(const string& col_name,
+        vector<string>& col_vals,
+        bool force){
+
+        ensure_writable();
+        if ((long int)col_vals.size() != n_cells){
+            throw runtime_error("Error: column size does not match number of cells");
+        }
+        string path = "/obs/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        file.createDataSet(path, col_vals);
+
+        // Add to column-order if not already present
+        auto obs = file.getGroup("obs");
+        if (obs.hasAttribute("column-order")){
+            vector<string> col_order;
+            obs.getAttribute("column-order").read(col_order);
+            if (find(col_order.begin(), col_order.end(), col_name) == col_order.end()){
+                col_order.push_back(col_name);
+                H5Adelete(obs.getId(), "column-order");
+                obs.createAttribute<vector<string>>("column-order", col_order);
+            }
+        }
+        return true;
+    }
+
+    bool anndata::write_meta_col(const string& col_name,
+        vector<int>& col_vals,
+        bool force){
+
+        ensure_writable();
+        if ((long int)col_vals.size() != n_cells){
+            throw runtime_error("Error: column size does not match number of cells");
+        }
+        string path = "/obs/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        file.createDataSet(path, col_vals);
+
+        auto obs = file.getGroup("obs");
+        if (obs.hasAttribute("column-order")){
+            vector<string> col_order;
+            obs.getAttribute("column-order").read(col_order);
+            if (find(col_order.begin(), col_order.end(), col_name) == col_order.end()){
+                col_order.push_back(col_name);
+                H5Adelete(obs.getId(), "column-order");
+                obs.createAttribute<vector<string>>("column-order", col_order);
+            }
+        }
+        return true;
+    }
+
+    bool anndata::write_meta_col(const string& col_name,
+        vector<double>& col_vals,
+        bool force){
+
+        ensure_writable();
+        if ((long int)col_vals.size() != n_cells){
+            throw runtime_error("Error: column size does not match number of cells");
+        }
+        string path = "/obs/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        file.createDataSet(path, col_vals);
+
+        auto obs = file.getGroup("obs");
+        if (obs.hasAttribute("column-order")){
+            vector<string> col_order;
+            obs.getAttribute("column-order").read(col_order);
+            if (find(col_order.begin(), col_order.end(), col_name) == col_order.end()){
+                col_order.push_back(col_name);
+                H5Adelete(obs.getId(), "column-order");
+                obs.createAttribute<vector<string>>("column-order", col_order);
+            }
+        }
+        return true;
+    }
+
+    bool anndata::write_meta_col(const string& col_name,
+        map<string, string>& col_vals,
+        bool force){
+
+        vector<string> vec;
+        vector<bool> na_mask;
+        vec.reserve(n_cells);
+        na_mask.reserve(n_cells);
+        bool has_missing = false;
+        for (long int i = 0; i < n_cells; ++i){
+            auto it = col_vals.find(cell_names[i]);
+            if (it != col_vals.end()){
+                vec.push_back(it->second);
+                na_mask.push_back(false);
+            }
+            else{
+                vec.push_back("");
+                na_mask.push_back(true);
+                has_missing = true;
+            }
+        }
+
+        if (!has_missing){
+            return write_meta_col(col_name, vec, force);
+        }
+
+        // Write as masked string group (values + mask)
+        ensure_writable();
+        string path = "/obs/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        HighFive::Group g = file.createGroup(path);
+        g.createAttribute<string>("encoding-type", string("categorical"));
+        g.createAttribute<string>("encoding-version", string("0.2.0"));
+        g.createDataSet("values", vec);
+        g.createDataSet("mask", na_mask);
+
+        auto obs = file.getGroup("obs");
+        if (obs.hasAttribute("column-order")){
+            vector<string> col_order;
+            obs.getAttribute("column-order").read(col_order);
+            if (find(col_order.begin(), col_order.end(), col_name) == col_order.end()){
+                col_order.push_back(col_name);
+                H5Adelete(obs.getId(), "column-order");
+                obs.createAttribute<vector<string>>("column-order", col_order);
+            }
+        }
+        return true;
+    }
+
+    bool anndata::write_meta_col(const string& col_name,
+        map<string, int>& col_vals,
+        bool force){
+
+        vector<int> vec;
+        vector<bool> na_mask;
+        vec.reserve(n_cells);
+        na_mask.reserve(n_cells);
+        bool has_missing = false;
+        for (long int i = 0; i < n_cells; ++i){
+            auto it = col_vals.find(cell_names[i]);
+            if (it != col_vals.end()){
+                vec.push_back(it->second);
+                na_mask.push_back(false);
+            }
+            else{
+                vec.push_back(0);
+                na_mask.push_back(true);
+                has_missing = true;
+            }
+        }
+
+        if (!has_missing){
+            return write_meta_col(col_name, vec, force);
+        }
+
+        // Write as nullable-integer group (values + mask)
+        ensure_writable();
+        string path = "/obs/" + col_name;
+        if (file.exist(path)){
+            if (!force){
+                return false;
+            }
+            H5Ldelete(file.getId(), path.c_str(), H5P_DEFAULT);
+        }
+        HighFive::Group g = file.createGroup(path);
+        g.createAttribute<string>("encoding-type", string("nullable-integer"));
+        g.createAttribute<string>("encoding-version", string("0.1.0"));
+        g.createDataSet("values", vec);
+        g.createDataSet("mask", na_mask);
+
+        auto obs = file.getGroup("obs");
+        if (obs.hasAttribute("column-order")){
+            vector<string> col_order;
+            obs.getAttribute("column-order").read(col_order);
+            if (find(col_order.begin(), col_order.end(), col_name) == col_order.end()){
+                col_order.push_back(col_name);
+                H5Adelete(obs.getId(), "column-order");
+                obs.createAttribute<vector<string>>("column-order", col_order);
+            }
+        }
+        return true;
+    }
+
+    bool anndata::write_meta_col(const string& col_name,
+        map<string, double>& col_vals,
+        bool force){
+
+        vector<double> vec;
+        vec.reserve(n_cells);
+        for (long int i = 0; i < n_cells; ++i){
+            auto it = col_vals.find(cell_names[i]);
+            if (it != col_vals.end()){
+                vec.push_back(it->second);
+            }
+            else{
+                vec.push_back(numeric_limits<double>::quiet_NaN());
+            }
+        }
+        return write_meta_col(col_name, vec, force);
     }
 
     void anndata::load_expr(vector<double>& X_data,

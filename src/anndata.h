@@ -41,6 +41,42 @@ namespace sch5{
                 std::vector<std::string>& col_vals,
                 bool fix_nan = true) override;
             
+            void load_meta_col(const std::string& col_name, 
+                std::vector<int>& col_vals,
+                std::vector<bool>& nanmask) override;
+            
+            void load_meta_col(const std::string& col_name, 
+                std::vector<double>& col_vals,
+                std::vector<bool>& nanmask) override;
+
+            void load_meta_col(const std::string& col_name,
+                std::vector<std::string>& col_vals,
+                std::vector<bool>& nanmask) override;
+
+            bool write_meta_col(const std::string& col_name,
+                std::vector<std::string>& col_vals,
+                bool force = false) override;
+
+            bool write_meta_col(const std::string& col_name,
+                std::vector<int>& col_vals,
+                bool force = false) override;
+
+            bool write_meta_col(const std::string& col_name,
+                std::vector<double>& col_vals,
+                bool force = false) override;
+
+            bool write_meta_col(const std::string& col_name,
+                std::map<std::string, std::string>& col_vals,
+                bool force = false) override;
+
+            bool write_meta_col(const std::string& col_name,
+                std::map<std::string, int>& col_vals,
+                bool force = false) override;
+
+            bool write_meta_col(const std::string& col_name,
+                std::map<std::string, double>& col_vals,
+                bool force = false) override;
+
             // Load expression data in CSR format
             void load_expr(std::vector<double>& X_data,
                 std::vector<int32_t>& X_indices,
