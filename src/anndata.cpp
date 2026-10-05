@@ -37,8 +37,23 @@ namespace sch5{
             string obs_idx_name;
             obs.getAttribute("_index").read(obs_idx_name);
             if (obs.getObjectType(obs_idx_name) == HighFive::ObjectType::Dataset){
-                // string column
-                obs.getDataSet(obs_idx_name).read(cell_names);
+                auto ds = obs.getDataSet(obs_idx_name);
+                auto dtype = ds.getDataType();
+                if (dtype.getClass() == HighFive::DataTypeClass::String){
+                    ds.read(cell_names);
+                }
+                else if (dtype.getClass() == HighFive::DataTypeClass::Integer){
+                    // Numeric index (e.g. RangeIndex) -- convert to strings
+                    vector<int64_t> int_index;
+                    ds.read(int_index);
+                    cell_names.reserve(int_index.size());
+                    for (size_t i = 0; i < int_index.size(); ++i){
+                        cell_names.push_back(to_string(int_index[i]));
+                    }
+                }
+                else{
+                    throw runtime_error("obs index has unsupported data type");
+                }
             }
             else{
                 // categorical column
@@ -49,12 +64,27 @@ namespace sch5{
 
             // Load var
             auto var = file.getGroup("var");
-            
+
             // Load index names
             string var_idx_name;
             var.getAttribute("_index").read(var_idx_name);
             if (var.getObjectType(var_idx_name) == HighFive::ObjectType::Dataset){
-                var.getDataSet(var_idx_name).read(gene_names);
+                auto ds = var.getDataSet(var_idx_name);
+                auto dtype = ds.getDataType();
+                if (dtype.getClass() == HighFive::DataTypeClass::String){
+                    ds.read(gene_names);
+                }
+                else if (dtype.getClass() == HighFive::DataTypeClass::Integer){
+                    vector<int64_t> int_index;
+                    ds.read(int_index);
+                    gene_names.reserve(int_index.size());
+                    for (size_t i = 0; i < int_index.size(); ++i){
+                        gene_names.push_back(to_string(int_index[i]));
+                    }
+                }
+                else{
+                    throw runtime_error("var index has unsupported data type");
+                }
             }
             else{
                 auto col_group = var.getGroup(var_idx_name);
