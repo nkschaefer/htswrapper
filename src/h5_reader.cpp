@@ -50,24 +50,29 @@ namespace sch5{
             return;
         }
         try{
-            {
-                // Move ownership out so HighFive releases its reference
-                HighFive::File old = std::move(file);
-                hid_t fid = old.getId();
-                // Close any child objects (groups, datasets) still open
-                // under this file -- they hold references that prevent
-                // the file from actually closing
-                int n = H5Fget_obj_count(fid, H5F_OBJ_ALL & ~H5F_OBJ_FILE);
-                if (n > 0){
-                    std::vector<hid_t> objs(n);
-                    H5Fget_obj_ids(fid, H5F_OBJ_ALL & ~H5F_OBJ_FILE,
-                        n, objs.data());
-                    for (int i = 0; i < n; ++i){
-                        H5Oclose(objs[i]);
+            hid_t fid = file.getId();
+            // Close every non-file object still open under this file.
+            // H5Idec_ref works for any identifier type (groups, datasets,
+            // attributes, datatypes) and we loop to drain any extra
+            // references added by HighFive copies.
+            ssize_t n = H5Fget_obj_count(fid, H5F_OBJ_ALL & ~H5F_OBJ_FILE);
+            if (n > 0){
+                std::vector<hid_t> objs(n);
+                H5Fget_obj_ids(fid, H5F_OBJ_ALL & ~H5F_OBJ_FILE,
+                    n, objs.data());
+                for (ssize_t i = 0; i < n; ++i){
+                    while (H5Iis_valid(objs[i])){
+                        if (H5Idec_ref(objs[i]) < 0){
+                            break;
+                        }
                     }
                 }
-                // old destroyed here, file handle actually closes
             }
+            // Close the file handle directly. After this, the hid held
+            // by the HighFive File member is no longer valid, so the
+            // move-assignment below will skip its H5Idec_ref call
+            // (HighFive checks H5Iis_valid before decrementing).
+            H5Fclose(fid);
             file = HighFive::File(filename, HighFive::File::ReadWrite);
             writable = true;
         }
