@@ -124,8 +124,13 @@ bool gzreader::next(){
         }
         if (eof && line_start < nread + idx_start){
             // Get last bit
-            strncpy(&line[0], &buf[line_start], nread+idx_start-line_start);
-            line[nread+idx_start-line_start] = '\0';
+            int line_len = nread+idx_start-line_start;
+            if (line_len+1 > this->strbufsize){
+                this->strbufsize = line_len+1;
+                this->line = (char*)realloc(line, this->strbufsize * sizeof(char));
+            }
+            strncpy(&line[0], &buf[line_start], line_len);
+            line[line_len] = '\0';
             line_start = nread;
             idx_start = 0;
             split_fields();
@@ -148,6 +153,10 @@ bool gzreader::next(){
         }
 
         if (!eof){
+            if (idx_start == bufsize){
+                bufsize *= 2;
+                buf = (char*)realloc(buf, bufsize * sizeof(char));
+            }
             // Read the next chunk from the gzFile
             if (this->is_gzipped){
                 nread = gzread(this->inf_gz, &(this->buf[idx_start]), this->bufsize-idx_start);
